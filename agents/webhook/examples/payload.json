@@ -1,0 +1,8 @@
+{
+  "repository": "tianweilong/vibe-kanban",
+  "environment": "dev",
+  "services": ["vibe-kanban-remote", "vibe-kanban-relay"],
+  "sha": "CHANGE_ME_SHA",
+  "ref": "refs/heads/main",
+  "deployment_commit": "CHANGE_ME_DEPLOY_CENTER_COMMIT"
+}

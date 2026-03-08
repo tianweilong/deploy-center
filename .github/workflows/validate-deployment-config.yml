@@ -1,0 +1,16 @@
+name: Validate Deployment Config
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate deployment YAML
+        run: ruby -e "require 'yaml'; Dir['**/*.yaml'].each { |f| YAML.load_file(f); puts f }"
+      - name: Validate helper scripts
+        run: bash -n scripts/update-deployment-state.sh

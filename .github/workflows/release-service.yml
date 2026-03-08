@@ -1,0 +1,123 @@
+name: Release Service
+
+on:
+  repository_dispatch:
+    types:
+      - deploy-center-release
+  workflow_dispatch:
+    inputs:
+      source_repository:
+        description: Source repository
+        required: true
+        type: string
+      source_ref:
+        description: Source ref
+        required: true
+        type: string
+      source_sha:
+        description: Source SHA
+        required: true
+        type: string
+      target_environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      services:
+        description: Comma-separated services
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || inputs.source_repository }}
+  SOURCE_REF: ${{ github.event.client_payload.source_ref || inputs.source_ref }}
+  SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
+  TARGET_ENVIRONMENT: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
+  TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Checkout source repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+
+      - name: Setup SSH agent for private dependencies
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VK_PRIVATE_DEPLOY_KEY }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Tencent Cloud CCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.TENCENT_REGISTRY }}
+          username: ${{ secrets.TENCENT_REGISTRY_USERNAME }}
+          password: ${{ secrets.TENCENT_REGISTRY_PASSWORD }}
+
+      - name: Install source dependencies for make metadata
+        working-directory: source
+        run: pnpm install
+
+      - name: Build, push, and update deployment state
+        env:
+          TARGET_FILE: ''
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra services <<< "${TARGET_SERVICES}"
+          for raw in "${services[@]}"; do
+            service="$(echo "$raw" | xargs)"
+            case "$service" in
+              vibe-kanban-remote)
+                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-remote"
+                (cd source && make push-remote \
+                  REMOTE_PLATFORM='linux/amd64' \
+                  REMOTE_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}" \
+                  VITE_RELAY_API_BASE_URL='CHANGE_ME_VITE_RELAY_API_BASE_URL')
+                ;;
+              vibe-kanban-relay)
+                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-relay"
+                (cd source && make push-relay \
+                  REMOTE_PLATFORM='linux/amd64' \
+                  RELAY_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}")
+                ;;
+              *)
+                echo "Unsupported service: $service" >&2
+                exit 1
+                ;;
+            esac
+            TARGET_FILE="environments/${TARGET_ENVIRONMENT}/${service}/deployment.yaml" \
+            DEPLOY_ENV="${TARGET_ENVIRONMENT}" \
+            SERVICE_NAME="$service" \
+            SOURCE_REF="${SOURCE_REF}" \
+            SOURCE_SHA="${SOURCE_SHA}" \
+            IMAGE_REPOSITORY="$image_repo" \
+            IMAGE_TAG="${SOURCE_SHA}" \
+            ./scripts/update-deployment-state.sh
+          done
+
+      - name: Commit deployment state updates
+        run: |
+          git config user.email 'action@github.com'
+          git config user.name 'GitHub Action'
+          if git diff --quiet; then
+            echo 'No deployment state changes to commit.'
+            exit 0
+          fi
+          git add environments
+          git commit -m "chore: update deployment state for ${TARGET_ENVIRONMENT} (${SOURCE_SHA})"
+          git push

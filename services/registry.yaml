@@ -1,0 +1,9 @@
+services:
+  - name: vibe-kanban-remote
+    project: vibe-kanban
+    repository: tianweilong/vibe-kanban
+    deploy_mode: compose
+  - name: vibe-kanban-relay
+    project: vibe-kanban
+    repository: tianweilong/vibe-kanban
+    deploy_mode: compose
