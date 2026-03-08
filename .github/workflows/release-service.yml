@@ -43,6 +43,10 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
+    env:
+      VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
     steps:
       - uses: actions/checkout@v6
 
@@ -53,6 +57,20 @@ jobs:
           ref: ${{ env.SOURCE_SHA }}
           path: source
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
+
+      - name: Validate release inputs
+        run: |
+          set -euo pipefail
+          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
+            echo 'Missing required release input.' >&2
+            exit 1
+          fi
+          if [[ "${TARGET_SERVICES}" == *"vibe-kanban-remote"* ]]; then
+            if [ -z "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" ] || [[ "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}" == CHANGE_ME* ]]; then
+              echo 'Environment variable VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL is not configured.' >&2
+              exit 1
+            fi
+          fi
 
       - name: Setup SSH agent for private dependencies
         uses: webfactory/ssh-agent@v0.9.0
@@ -74,8 +92,6 @@ jobs:
         run: pnpm install
 
       - name: Build, push, and update deployment state
-        env:
-          TARGET_FILE: ''
         run: |
           set -euo pipefail
           IFS=',' read -ra services <<< "${TARGET_SERVICES}"
@@ -87,7 +103,7 @@ jobs:
                 (cd source && make push-remote \
                   REMOTE_PLATFORM='linux/amd64' \
                   REMOTE_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}" \
-                  VITE_RELAY_API_BASE_URL='CHANGE_ME_VITE_RELAY_API_BASE_URL')
+                  VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}")
                 ;;
               vibe-kanban-relay)
                 image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-relay"
