@@ -12,7 +12,7 @@ set -euo pipefail
 file="environments/${DEPLOY_ENV}/${SERVICE_NAME}/deployment.yaml"
 [ -f "$file" ] || { echo "Missing deployment descriptor: $file" >&2; exit 1; }
 
-ruby <<'RUBY'
+TARGET_FILE="$file" ruby <<'RUBY'
 require 'yaml'
 file = ENV.fetch('TARGET_FILE')
 data = YAML.load_file(file)
