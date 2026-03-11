@@ -2,11 +2,13 @@
 
 ## Required repository secrets
 
-- `TENCENT_REGISTRY`
-- `TENCENT_REGISTRY_USERNAME`
-- `TENCENT_REGISTRY_PASSWORD`
 - `VK_PRIVATE_DEPLOY_KEY`
 - `SOURCE_REPO_TOKEN`
+
+## Required deployment host credentials
+
+- PAT classic with `read:packages`
+- Login command: `docker login ghcr.io`
 
 ## Required application-repo trigger secret
 
