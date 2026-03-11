@@ -9,16 +9,22 @@ and future pull-based deployment integration points for multiple services.
 
 Required repository secrets:
 
-- `TENCENT_REGISTRY`
-- `TENCENT_REGISTRY_USERNAME`
-- `TENCENT_REGISTRY_PASSWORD`
 - `VK_PRIVATE_DEPLOY_KEY`
 - `SOURCE_REPO_TOKEN`
 
+Required workflow permissions:
+
+- `GITHUB_TOKEN` with `packages: write`
+
 Required environment variables:
 
-- `dev` → `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
-- `prod` → `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
+- `dev` -> `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
+- `prod` -> `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
+
+Required deployment-host credentials:
+
+- PAT classic with `read:packages`
+- `docker login ghcr.io`
 
 `vibe-kanban` only keeps one trigger secret:
 

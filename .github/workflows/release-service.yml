@@ -32,6 +32,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 env:
   SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || inputs.source_repository }}
@@ -39,14 +40,48 @@ env:
   SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
   TARGET_ENVIRONMENT: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
   TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
+  DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
     env:
       VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate release inputs
+        run: |
+          set -euo pipefail
+          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
+            echo 'Missing required release input.' >&2
+            exit 1
+          fi
+
+      - id: matrix
+        name: Build service matrix
+        run: |
+          set -euo pipefail
+          matrix=$(TARGET_SERVICES="${TARGET_SERVICES}" \
+            SOURCE_SHA="${SOURCE_SHA}" \
+            VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
+            ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json)
+          {
+            echo 'matrix<<EOF'
+            echo "$matrix"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v6
 
@@ -58,76 +93,71 @@ jobs:
           path: source
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
 
-      - name: Validate release inputs
-        run: |
-          set -euo pipefail
-          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
-            echo 'Missing required release input.' >&2
-            exit 1
-          fi
-          if [[ "${TARGET_SERVICES}" == *"vibe-kanban-remote"* ]]; then
-            if [ -z "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" ] || [[ "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}" == CHANGE_ME* ]]; then
-              echo 'Environment variable VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL is not configured.' >&2
-              exit 1
-            fi
-          fi
-
       - name: Setup SSH agent for private dependencies
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VK_PRIVATE_DEPLOY_KEY }}
 
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Tencent Cloud CCR
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.TENCENT_REGISTRY }}
-          username: ${{ secrets.TENCENT_REGISTRY_USERNAME }}
-          password: ${{ secrets.TENCENT_REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install source dependencies for make metadata
-        working-directory: source
-        run: pnpm install
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          push: true
+          ssh: default
+          tags: ${{ matrix.image_repository }}:${{ matrix.tag }}
+          build-args: ${{ join(matrix.build_args, '\n') }}
 
-      - name: Build, push, and update deployment state
+  update-state:
+    needs:
+      - prepare
+      - build
+    if: ${{ needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update deployment state files
+        env:
+          RELEASE_MATRIX: ${{ needs.prepare.outputs.matrix }}
         run: |
           set -euo pipefail
-          IFS=',' read -ra services <<< "${TARGET_SERVICES}"
-          for raw in "${services[@]}"; do
-            service="$(echo "$raw" | xargs)"
-            case "$service" in
-              vibe-kanban-remote)
-                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-remote"
-                (cd source && make push-remote \
-                  REMOTE_PLATFORM='linux/amd64' \
-                  REMOTE_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}" \
-                  VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}")
-                ;;
-              vibe-kanban-relay)
-                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-relay"
-                (cd source && make push-relay \
-                  REMOTE_PLATFORM='linux/amd64' \
-                  RELAY_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}")
-                ;;
-              *)
-                echo "Unsupported service: $service" >&2
-                exit 1
-                ;;
-            esac
-            TARGET_FILE="environments/${TARGET_ENVIRONMENT}/${service}/deployment.yaml" \
-            DEPLOY_ENV="${TARGET_ENVIRONMENT}" \
-            SERVICE_NAME="$service" \
-            SOURCE_REF="${SOURCE_REF}" \
-            SOURCE_SHA="${SOURCE_SHA}" \
-            IMAGE_REPOSITORY="$image_repo" \
-            IMAGE_TAG="${SOURCE_SHA}" \
-            ./scripts/update-deployment-state.sh
-          done
+          ruby <<'RUBY'
+          require 'json'
+          matrix = JSON.parse(ENV.fetch('RELEASE_MATRIX')).fetch('include')
+          matrix.each do |service|
+            ok = system(
+              {
+                'DEPLOY_ENV' => ENV.fetch('TARGET_ENVIRONMENT'),
+                'SERVICE_NAME' => service.fetch('service'),
+                'SOURCE_REF' => ENV.fetch('SOURCE_REF'),
+                'SOURCE_SHA' => ENV.fetch('SOURCE_SHA'),
+                'IMAGE_REPOSITORY' => service.fetch('image_repository'),
+                'IMAGE_TAG' => ENV.fetch('SOURCE_SHA')
+              },
+              './scripts/update-deployment-state.sh'
+            )
+            abort("Failed to update #{service.fetch('service')}") unless ok
+          end
+          RUBY
 
       - name: Commit deployment state updates
         run: |
+          set -euo pipefail
           git config user.email 'action@github.com'
           git config user.name 'GitHub Action'
           if git diff --quiet; then

@@ -7,7 +7,7 @@ source:
   ref: refs/heads/main
   sha: CHANGE_ME_SHA
 image:
-  repository: ccr.ccs.tencentyun.com/vino/vibe-kanban-relay
+  repository: ghcr.io/tianweilong/vibe-kanban-relay
   tag: CHANGE_ME_TAG
 compose:
   file: docker-compose.yml
