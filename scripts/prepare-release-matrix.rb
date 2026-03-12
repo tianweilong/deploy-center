@@ -8,7 +8,7 @@ requested_services = ENV.fetch('TARGET_SERVICES')
                     .map(&:strip)
                     .reject(&:empty?)
                     .uniq
-source_sha = ENV.fetch('SOURCE_SHA')
+source_tag = ENV.fetch('SOURCE_TAG')
 service_map = config.fetch('services').each_with_object({}) do |service, memo|
   memo[service.fetch('service')] = service
 end
@@ -34,7 +34,7 @@ include_items = requested_services.map do |name|
     'dockerfile' => service.fetch('dockerfile'),
     'platforms' => service.fetch('platforms'),
     'build_args' => build_args,
-    'tag' => source_sha
+    'tag' => source_tag
   }
 end
 

@@ -2,11 +2,11 @@
 
 ## 1. 仓库定位
 
-`deploy-center` 是一个以环境状态为中心的多服务部署控制仓库。它本身不承载业务代码，而是承担以下职责：
+`deploy-center` 是一个以服务发布状态为中心的多服务部署控制仓库。它本身不承载业务代码，而是承担以下职责：
 
 - 接收应用仓库触发的发布事件，或由维护者手动触发发布工作流。
 - 根据服务配置生成构建矩阵，从源仓库检出指定提交，构建并推送镜像到 GHCR。
-- 将目标环境的期望部署状态写回仓库中的 `environments/` 目录，并提交变更。
+- 将目标服务的期望部署状态写回仓库中的 `environments/` 目录，并提交变更。
 - 预留未来的拉模式部署代理协议，使目标机器可以从本仓库拉取期望状态并执行部署。
 
 当前仓库主要服务于 `tianweilong/vibe-kanban`，已纳管两个服务：
@@ -14,17 +14,17 @@
 - `vibe-kanban-remote`
 - `vibe-kanban-relay`
 
-如果把整个链路简化成一句话：**应用仓库负责产生命令，这个仓库负责生成镜像与记录环境期望状态。**
+如果把整个链路简化成一句话：**应用仓库负责产生命令，这个仓库负责生成镜像与记录服务期望状态。**
 
 ## 2. 建议阅读顺序
 
 第一次接手本仓库时，建议按以下顺序阅读：
 
 1. `README.md`：快速了解仓库用途与必需凭据。
-2. `docs/architecture.md`：理解环境优先、状态驱动的整体架构。
+2. `docs/architecture.md`：理解状态驱动的整体架构。
 3. `docs/rollout.md`：查看发布前置条件与部署主机要求。
 4. `docs/developer-guide.md`：按本文理解目录结构、工作流与维护规范。
-5. `environments/<env>/<service>/deployment.yaml`：查看具体环境的期望状态。
+5. `environments/<service>/deployment.yaml`：查看具体服务的期望状态。
 6. `.github/workflows/release-service.yml`：理解实际发布执行路径。
 
 ## 3. 目录结构与职责
@@ -49,14 +49,14 @@
 - `services/registry.yaml` 更像服务清单。
 - `config/services.vibe-kanban.json` 更像构建元数据来源。
 
-### 环境状态
+### 服务状态
 
-- `environments/dev/...`
-- `environments/prod/...`
+- `environments/vibe-kanban-remote/...`
+- `environments/vibe-kanban-relay/...`
 
-每个服务在每个环境下都有一个独立目录，目录内通常包含四类文件：
+每个服务都有一个独立目录，目录内通常包含四类文件：
 
-- `README.md`：该环境下该服务目录的简要说明。
+- `README.md`：该服务目录的简要说明。
 - `.env.example`：目标主机本地环境变量示例。
 - `docker-compose.yml`：Compose 服务骨架。
 - `deployment.yaml`：**当前最关键的部署期望状态描述符。**
@@ -96,7 +96,7 @@
 - `SOURCE_REPOSITORY`
 - `SOURCE_REF`
 - `SOURCE_SHA`
-- `TARGET_ENVIRONMENT`
+- `SOURCE_TAG`
 - `TARGET_SERVICES`
 
 ### 4.2 prepare 阶段
@@ -104,13 +104,12 @@
 `prepare` 任务会做三件事：
 
 1. 校验发布输入是否完整。
-2. 读取目标 GitHub Environment 中的变量。
+2. 读取仓库变量中的构建参数。
 3. 调用 `scripts/prepare-release-matrix.rb` 生成服务构建矩阵。
 
-目前可以确定的环境级变量是：
+目前可以确定的仓库变量是：
 
-- `dev` -> `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
-- `prod` -> `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
+- `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
 
 之所以需要它，是因为 `vibe-kanban-remote` 的镜像构建依赖 build arg `VITE_RELAY_API_BASE_URL`。
 
@@ -125,7 +124,10 @@
 5. 使用 `GITHUB_TOKEN` 登录 `ghcr.io`。
 6. 通过 `docker/build-push-action@v6` 构建并推送镜像。
 
-当前镜像标签策略非常简单：**镜像 tag 直接使用 `SOURCE_SHA`。**
+当前镜像标签策略如下：
+
+- 始终推送 `${SOURCE_TAG}` 对应的镜像 tag。
+- 仅当 `SOURCE_TAG` 是仓库中最新的正式语义化版本标签时，额外推送 `latest`。
 
 ### 4.4 update-state 阶段
 
@@ -142,14 +144,13 @@
 
 也就是说，本仓库中的 Git 提交本身就是部署状态审计轨迹的一部分。
 
-## 5. 环境模型与文件约定
+## 5. 服务状态模型与文件约定
 
 ### 5.1 `deployment.yaml` 是事实来源
 
-每个环境目录下的 `deployment.yaml` 负责表达某个服务在该环境中的期望状态。以现有文件为例，它包含：
+每个服务目录下的 `deployment.yaml` 负责表达该服务的期望状态。以现有文件为例，它包含：
 
 - 服务标识：`service`、`project`、`repository`
-- 目标环境：`environment`
 - 部署模式：`deploy_mode`
 - 源码元数据：`source.ref`、`source.sha`
 - 镜像元数据：`image.repository`、`image.tag`
@@ -159,13 +160,13 @@
 
 对维护者来说，最重要的是理解这几点：
 
-- `source.sha` 与 `image.tag` 在当前流程里会保持同步。
+- `source.sha` 与 `image.tag` 不再相同：前者用于追溯源码提交，后者记录正式发布标签。
 - `image.repository` 必须与 `config/services.vibe-kanban.json` 中的定义一致。
 - `healthcheck.command` 是后续自动化代理实现时的重要契约字段，不建议随意删改。
 
 ### 5.2 `docker-compose.yml` 目前更像模板骨架
 
-当前各环境下的 `docker-compose.yml` 仍保留 `CHANGE_ME_TAG` 占位符，并没有被发布工作流直接回写。结合 `docs/architecture.md` 与 `agents/webhook/protocol.md` 可以推断：
+当前各服务目录下的 `docker-compose.yml` 仍保留 `CHANGE_ME_TAG` 占位符，并没有被发布工作流直接回写。结合 `docs/architecture.md` 与 `agents/webhook/protocol.md` 可以推断：
 
 - 现阶段真正被自动维护的是 `deployment.yaml`。
 - `docker-compose.yml` 主要提供服务名与镜像结构骨架。
@@ -183,7 +184,7 @@
 
 当前登记了两个服务，字段含义如下：
 
-- `name`：服务名，对应 `environments/<env>/<service>` 目录名。
+- `name`：服务名，对应 `environments/<service>` 目录名。
 - `project`：所属项目，目前为 `vibe-kanban`。
 - `repository`：源代码仓库。
 - `deploy_mode`：当前值为 `compose`。
@@ -241,7 +242,7 @@ bash tests/ghcr-references.sh
 
 ```bash
 TARGET_SERVICES='vibe-kanban-remote,vibe-kanban-relay' \
-SOURCE_SHA='abc1234' \
+SOURCE_TAG='v1.2.3' \
 VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL='https://relay.example.com' \
 ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json
 ```
@@ -251,12 +252,11 @@ ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json
 ### 7.4 本地模拟部署状态更新
 
 ```bash
-DEPLOY_ENV='dev' \
 SERVICE_NAME='vibe-kanban-remote' \
-SOURCE_REF='refs/heads/main' \
+SOURCE_REF='refs/tags/v1.2.3' \
 SOURCE_SHA='abc1234' \
 IMAGE_REPOSITORY='ghcr.io/tianweilong/vibe-kanban-remote' \
-IMAGE_TAG='abc1234' \
+IMAGE_TAG='v1.2.3' \
 ./scripts/update-deployment-state.sh
 ```
 
@@ -275,10 +275,9 @@ IMAGE_TAG='abc1234' \
 
 - `GITHUB_TOKEN` 需要具备 `packages: write`
 
-### 8.3 GitHub Environment 变量
+### 8.3 仓库变量
 
-- `dev` 环境需要配置 `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
-- `prod` 环境需要配置 `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
+- 需要配置 `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
 
 ### 8.4 目标部署主机侧要求
 
@@ -299,9 +298,9 @@ IMAGE_TAG='abc1234' \
 
 1. 在 `services/registry.yaml` 增加服务登记。
 2. 在 `config/services.vibe-kanban.json` 增加构建配置。
-3. 为 `dev` 与 `prod` 各创建一个 `environments/<env>/<service>/` 目录。
+3. 创建一个 `environments/<service>/` 目录。
 4. 至少补齐 `README.md`、`.env.example`、`docker-compose.yml`、`deployment.yaml`。
-5. 若新服务有额外 build args，确保对应 GitHub Environment 变量也已创建。
+5. 若新服务有额外 build args，确保对应仓库变量也已创建。
 6. 视改动范围补充或更新 `tests/*.sh`。
 7. 运行基础校验与回归测试。
 
@@ -338,7 +337,7 @@ IMAGE_TAG='abc1234' \
 
 - 优先把 `deployment.yaml` 视为自动化系统事实来源。
 - 让 `config/services.vibe-kanban.json` 与 `services/registry.yaml` 保持同一组服务集合。
-- 改动 GHCR、Secrets、环境变量时，记得同步更新 `README.md` 与 `docs/rollout.md`。
+- 改动 GHCR、Secrets、仓库变量时，记得同步更新 `README.md` 与 `docs/rollout.md`。
 - 改动工作流前先看测试，改完后立即跑测试，避免无约束重构。
 
 ## 11. 快速心智模型
@@ -346,6 +345,6 @@ IMAGE_TAG='abc1234' \
 如果你只想快速建立整体印象，可以记住下面四句话：
 
 1. **源仓库负责触发，这个仓库负责发布。**
-2. **GHCR 镜像 tag 直接等于源仓库提交 SHA。**
-3. **`deployment.yaml` 是环境期望状态的核心记录。**
+2. **GHCR 镜像 tag 直接等于源仓库正式标签，`latest` 永远跟随最新正式标签。**
+3. **`deployment.yaml` 是服务期望状态的核心记录。**
 4. **未来代理会围绕这里的状态文件进行拉模式部署。**

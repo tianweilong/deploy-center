@@ -1,4 +1,0 @@
-services:
-  relay:
-    image: ghcr.io/tianweilong/vibe-kanban-relay:CHANGE_ME_TAG
-    restart: unless-stopped

@@ -1,7 +1,6 @@
 service: vibe-kanban-relay
 project: vibe-kanban
 repository: tianweilong/vibe-kanban
-environment: prod
 deploy_mode: compose
 source:
   ref: refs/heads/main
