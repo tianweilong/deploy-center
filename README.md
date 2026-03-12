@@ -29,3 +29,9 @@ Required deployment-host credentials:
 `vibe-kanban` only keeps one trigger secret:
 
 - `DEPLOY_CENTER_TRIGGER_TOKEN`
+
+## Developer docs
+
+- Developer guide: `docs/developer-guide.md`
+- Architecture notes: `docs/architecture.md`
+- Rollout guide: `docs/rollout.md`
