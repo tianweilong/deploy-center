@@ -1,5 +1,5 @@
-# Webhook Agent
+# Webhook 代理
 
-This directory defines the future pull-based deployment agent contract.
+该目录定义了未来拉取式部署代理的契约。
 
-The first migration does not ship a production agent yet. It reserves the protocol and directory shape so later server-side agents can subscribe to deployment-state changes from `deploy-center`.
+第一次迁移暂不交付生产可用代理。当前仅预留协议与目录结构，便于后续服务器侧代理订阅来自 `deploy-center` 的部署状态变更。

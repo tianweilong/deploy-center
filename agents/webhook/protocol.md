@@ -1,10 +1,10 @@
-# Webhook Protocol
+# Webhook 协议
 
-## Intent
+## 目标
 
-A future server-side agent receives webhook refresh events, pulls `deploy-center`, and reconciles the target environment to the deployment descriptors stored in Git.
+未来的服务器侧代理会接收 webhook 刷新事件，拉取 `deploy-center`，并将目标环境对齐到 Git 中保存的部署描述文件。
 
-## Expected payload fields
+## 预期载荷字段
 
 - `repository`
 - `environment`
@@ -13,11 +13,11 @@ A future server-side agent receives webhook refresh events, pulls `deploy-center
 - `ref`
 - `deployment_commit`
 
-## Agent responsibilities
+## 代理职责
 
-1. Validate webhook authenticity.
-2. Pull latest `deploy-center` state.
-3. Load matching `deployment.yaml` files.
-4. Pull the desired image tags.
-5. Reconcile Docker Compose services.
-6. Record local deployment results.
+1. 校验 webhook 的真实性。
+2. 拉取最新的 `deploy-center` 状态。
+3. 加载匹配的 `deployment.yaml` 文件。
+4. 拉取目标镜像标签。
+5. 对齐 Docker Compose 服务状态。
+6. 记录本地部署结果。

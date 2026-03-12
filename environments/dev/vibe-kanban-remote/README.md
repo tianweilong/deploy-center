@@ -1,3 +1,3 @@
-# vibe-kanban-remote (dev)
+# vibe-kanban-remote（dev）
 
-This directory stores deployment state for vibe-kanban-remote in dev.
+此目录保存 `vibe-kanban-remote` 在 `dev` 环境中的部署状态。

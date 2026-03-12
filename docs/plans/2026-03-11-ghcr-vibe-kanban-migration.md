@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 将 `deploy-center` 中 `vibe-kanban` 的镜像发布从腾讯云 CCR 迁移到私有 GHCR，移除对 `vibe-kanban/Makefile` 的构建依赖，并将 workflow 重构为服务清单驱动的三段式发布流程。
+**目标：** 将 `deploy-center` 中 `vibe-kanban` 的镜像发布从腾讯云 CCR 迁移到私有 GHCR，移除对 `vibe-kanban/Makefile` 的构建依赖，并将 workflow 重构为服务清单驱动的三段式发布流程。
 
-**Architecture:** 在 `deploy-center` 中新增一份 JSON 服务清单和一个 Ruby matrix 生成脚本，`prepare` job 负责校验输入并产出构建 matrix，`build` job 直接使用 `docker/build-push-action` 构建 `linux/amd64,linux/arm64` 镜像并推送到 `ghcr.io`，`update-state` job 统一回写 `deployment.yaml`。保留 `deployment.yaml` 作为版本真源，`docker-compose.yml` 仅做一次性 GHCR 地址迁移。
+**架构：** 在 `deploy-center` 中新增一份 JSON 服务清单和一个 Ruby matrix 生成脚本，`prepare` job 负责校验输入并产出构建 matrix，`build` job 直接使用 `docker/build-push-action` 构建 `linux/amd64,linux/arm64` 镜像并推送到 `ghcr.io`，`update-state` job 统一回写 `deployment.yaml`。保留 `deployment.yaml` 作为版本真源，`docker-compose.yml` 仅做一次性 GHCR 地址迁移。
 
-**Tech Stack:** GitHub Actions、Docker Buildx、docker/build-push-action、Bash、Ruby、JSON、YAML、ripgrep
+**技术栈：** GitHub Actions、Docker Buildx、docker/build-push-action、Bash、Ruby、JSON、YAML、ripgrep
 
 ---
 
@@ -58,7 +58,7 @@ if TARGET_SERVICES='vibe-kanban-remote' SOURCE_SHA='abc1234' ruby scripts/prepar
   exit 1
 fi
 
-grep -q 'Missing required build arg env' /tmp/prepare-matrix.err
+grep -q '缺少必填构建参数环境变量' /tmp/prepare-matrix.err
 ```
 
 **Step 2: Run test to verify it fails**
@@ -120,13 +120,13 @@ end
 
 include_items = requested_services.map do |name|
   service = service_map[name]
-  abort("Unsupported service: #{name}") unless service
+  abort("不支持的服务：#{name}") unless service
 
   build_args = service.fetch('build_args').map do |build_arg|
     env_name = build_arg.fetch('env')
     value = ENV[env_name].to_s
     if value.empty? || value.start_with?('CHANGE_ME')
-      abort("Missing required build arg env: #{env_name}")
+      abort("缺少必填构建参数环境变量：#{env_name}")
     end
     "#{build_arg.fetch('name')}=#{value}"
   end
@@ -212,26 +212,26 @@ on:
   workflow_dispatch:
     inputs:
       source_repository:
-        description: Source repository
+        description: 源仓库
         required: true
         type: string
       source_ref:
-        description: Source ref
+        description: 源引用
         required: true
         type: string
       source_sha:
-        description: Source SHA
+        description: 源提交 SHA
         required: true
         type: string
       target_environment:
-        description: Target environment
+        description: 目标环境
         required: true
         type: choice
         options:
           - dev
           - prod
       services:
-        description: Comma-separated services
+        description: 逗号分隔的服务列表
         required: true
         type: string
 
@@ -258,16 +258,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Validate release inputs
+      - name: 校验发布输入
         run: |
           set -euo pipefail
           if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
-            echo 'Missing required release input.' >&2
+            echo '缺少必填发布输入。' >&2
             exit 1
           fi
 
       - id: matrix
-        name: Build service matrix
+        name: 构建服务矩阵
         run: |
           matrix=$(TARGET_SERVICES="${TARGET_SERVICES}" \
             SOURCE_SHA="${SOURCE_SHA}" \
@@ -288,7 +288,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Checkout source repository
+      - name: 检出源仓库
         uses: actions/checkout@v6
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
@@ -296,25 +296,25 @@ jobs:
           path: source
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
 
-      - name: Setup SSH agent for private dependencies
+      - name: 为私有依赖配置 SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VK_PRIVATE_DEPLOY_KEY }}
 
-      - name: Setup QEMU
+      - name: 配置 QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Setup Docker Buildx
+      - name: 配置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: 登录 GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: 构建并推送镜像
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -335,7 +335,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Update deployment state files
+      - name: 更新部署状态文件
         env:
           RELEASE_MATRIX: ${{ needs.prepare.outputs.matrix }}
         run: |
@@ -358,7 +358,7 @@ jobs:
           end
           RUBY
 
-      - name: Commit deployment state updates
+      - name: 提交部署状态变更
         run: |
           git config user.email 'action@github.com'
           git config user.name 'GitHub Action'
@@ -457,7 +457,7 @@ Expected: FAIL with `key not found: "TARGET_FILE"` because the current script on
 
 ```bash
 file="environments/${DEPLOY_ENV}/${SERVICE_NAME}/deployment.yaml"
-[ -f "$file" ] || { echo "Missing deployment descriptor: $file" >&2; exit 1; }
+[ -f "$file" ] || { echo "缺少部署描述文件：$file" >&2; exit 1; }
 
 TARGET_FILE="$file" ruby <<'RUBY'
 require 'yaml'
@@ -567,7 +567,7 @@ Expected: FAIL because the repository still contains Tencent registry references
 ```markdown
 ## GitHub configuration
 
-Required repository secrets:
+必需的仓库密钥：
 
 - `VK_PRIVATE_DEPLOY_KEY`
 - `SOURCE_REPO_TOKEN`
@@ -594,12 +594,12 @@ Required deployment-host credentials:
 将 `docs/rollout.md` 改为以下要点：
 
 ```markdown
-## Required repository secrets
+## 必需的仓库密钥
 
 - `VK_PRIVATE_DEPLOY_KEY`
 - `SOURCE_REPO_TOKEN`
 
-## Required deployment host credentials
+## 必需的部署主机凭据
 
 - PAT classic with `read:packages`
 - Login command: `docker login ghcr.io`
