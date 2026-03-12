@@ -1,4 +1,4 @@
-name: Release Service
+name: 发布服务
 
 on:
   repository_dispatch:
@@ -7,26 +7,26 @@ on:
   workflow_dispatch:
     inputs:
       source_repository:
-        description: Source repository
+        description: 源仓库
         required: true
         type: string
       source_ref:
-        description: Source ref
+        description: 源引用
         required: true
         type: string
       source_sha:
-        description: Source SHA
+        description: 源提交 SHA
         required: true
         type: string
       target_environment:
-        description: Target environment
+        description: 目标环境
         required: true
         type: choice
         options:
           - dev
           - prod
       services:
-        description: Comma-separated services
+        description: 逗号分隔的服务列表
         required: true
         type: string
 
@@ -54,16 +54,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Validate release inputs
+      - name: 校验发布输入
         run: |
           set -euo pipefail
           if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
-            echo 'Missing required release input.' >&2
+            echo '缺少必填发布输入。' >&2
             exit 1
           fi
 
       - id: matrix
-        name: Build service matrix
+        name: 构建服务矩阵
         run: |
           set -euo pipefail
           matrix=$(TARGET_SERVICES="${TARGET_SERVICES}" \
@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Checkout source repository
+      - name: 检出源仓库
         uses: actions/checkout@v6
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
@@ -93,25 +93,25 @@ jobs:
           path: source
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
 
-      - name: Setup SSH agent for private dependencies
+      - name: 为私有依赖配置 SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VK_PRIVATE_DEPLOY_KEY }}
 
-      - name: Setup QEMU
+      - name: 配置 QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Setup Docker Buildx
+      - name: 配置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: 登录 GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: 构建并推送镜像
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -131,7 +131,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Update deployment state files
+      - name: 更新部署状态文件
         env:
           RELEASE_MATRIX: ${{ needs.prepare.outputs.matrix }}
         run: |
@@ -151,19 +151,19 @@ jobs:
               },
               './scripts/update-deployment-state.sh'
             )
-            abort("Failed to update #{service.fetch('service')}") unless ok
+            abort("更新 #{service.fetch('service')} 失败") unless ok
           end
           RUBY
 
-      - name: Commit deployment state updates
+      - name: 提交部署状态变更
         run: |
           set -euo pipefail
           git config user.email 'action@github.com'
           git config user.name 'GitHub Action'
           if git diff --quiet; then
-            echo 'No deployment state changes to commit.'
+            echo '没有可提交的部署状态变更。'
             exit 0
           fi
           git add environments
-          git commit -m "chore: update deployment state for ${TARGET_ENVIRONMENT} (${SOURCE_SHA})"
+          git commit -m "chore: 更新 ${TARGET_ENVIRONMENT} 环境部署状态 (${SOURCE_SHA})"
           git push

@@ -15,13 +15,13 @@ end
 
 include_items = requested_services.map do |name|
   service = service_map[name]
-  abort("Unsupported service: #{name}") unless service
+  abort("不支持的服务：#{name}") unless service
 
   build_args = service.fetch('build_args').map do |build_arg|
     env_name = build_arg.fetch('env')
     value = ENV[env_name].to_s
     if value.empty? || value.start_with?('CHANGE_ME')
-      abort("Missing required build arg env: #{env_name}")
+      abort("缺少必填构建参数环境变量：#{env_name}")
     end
 
     "#{build_arg.fetch('name')}=#{value}"

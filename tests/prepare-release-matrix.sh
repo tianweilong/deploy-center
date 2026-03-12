@@ -13,25 +13,25 @@ output=$( \
 ruby -rjson -e '
   data = JSON.parse(STDIN.read)
   include_items = data.fetch("include")
-  raise "expected two services" unless include_items.size == 2
+  raise "应返回两个服务" unless include_items.size == 2
 
   remote = include_items.find { |item| item.fetch("service") == "vibe-kanban-remote" }
   relay = include_items.find { |item| item.fetch("service") == "vibe-kanban-relay" }
 
-  raise "missing remote service" unless remote
-  raise "missing relay service" unless relay
+  raise "缺少 remote 服务" unless remote
+  raise "缺少 relay 服务" unless relay
 
-  raise "wrong remote repo" unless remote.fetch("image_repository") == "ghcr.io/tianweilong/vibe-kanban-remote"
-  raise "wrong relay repo" unless relay.fetch("image_repository") == "ghcr.io/tianweilong/vibe-kanban-relay"
-  raise "wrong platforms" unless remote.fetch("platforms") == "linux/amd64,linux/arm64"
-  raise "missing build arg" unless remote.fetch("build_args") == ["VITE_RELAY_API_BASE_URL=https://relay.example.com"]
-  raise "relay should not need build args" unless relay.fetch("build_args") == []
-  raise "wrong tag" unless remote.fetch("tag") == "abc1234"
+  raise "remote 镜像仓库错误" unless remote.fetch("image_repository") == "ghcr.io/tianweilong/vibe-kanban-remote"
+  raise "relay 镜像仓库错误" unless relay.fetch("image_repository") == "ghcr.io/tianweilong/vibe-kanban-relay"
+  raise "平台配置错误" unless remote.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "缺少构建参数" unless remote.fetch("build_args") == ["VITE_RELAY_API_BASE_URL=https://relay.example.com"]
+  raise "relay 不应需要构建参数" unless relay.fetch("build_args") == []
+  raise "镜像标签错误" unless remote.fetch("tag") == "abc1234"
 ' <<< "$output"
 
 if TARGET_SERVICES='vibe-kanban-remote' SOURCE_SHA='abc1234' ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json >/tmp/prepare-matrix.out 2>/tmp/prepare-matrix.err; then
-  echo 'expected missing build arg failure' >&2
+  echo '预期缺少构建参数时失败' >&2
   exit 1
 fi
 
-grep -q 'Missing required build arg env' /tmp/prepare-matrix.err
+grep -q '缺少必填构建参数环境变量' /tmp/prepare-matrix.err

@@ -1,3 +1,3 @@
-# vibe-kanban-relay (prod)
+# vibe-kanban-relay（prod）
 
-This directory stores deployment state for vibe-kanban-relay in prod.
+此目录保存 `vibe-kanban-relay` 在 `prod` 环境中的部署状态。
