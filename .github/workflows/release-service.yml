@@ -18,13 +18,10 @@ on:
         description: 源提交 SHA
         required: true
         type: string
-      target_environment:
-        description: 目标环境
+      source_tag:
+        description: 源标签
         required: true
-        type: choice
-        options:
-          - dev
-          - prod
+        type: string
       services:
         description: 逗号分隔的服务列表
         required: true
@@ -38,15 +35,13 @@ env:
   SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || inputs.source_repository }}
   SOURCE_REF: ${{ github.event.client_payload.source_ref || inputs.source_ref }}
   SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
-  TARGET_ENVIRONMENT: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
+  SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}
   TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
   DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
     env:
       VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
     outputs:
@@ -57,7 +52,7 @@ jobs:
       - name: 校验发布输入
         run: |
           set -euo pipefail
-          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
+          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${SOURCE_TAG}" ] || [ -z "${TARGET_SERVICES}" ]; then
             echo '缺少必填发布输入。' >&2
             exit 1
           fi
@@ -67,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           matrix=$(TARGET_SERVICES="${TARGET_SERVICES}" \
-            SOURCE_SHA="${SOURCE_SHA}" \
+            SOURCE_TAG="${SOURCE_TAG}" \
             VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
             ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json)
           {
@@ -92,6 +87,27 @@ jobs:
           ref: ${{ env.SOURCE_SHA }}
           path: source
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - id: image-tags
+        name: 生成镜像标签
+        working-directory: source
+        env:
+          IMAGE_REPOSITORY: ${{ matrix.image_repository }}
+        run: |
+          set -euo pipefail
+          latest_tag=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
+          tags="${IMAGE_REPOSITORY}:${SOURCE_TAG}"
+
+          if [ -n "${latest_tag}" ] && [ "${latest_tag}" = "${SOURCE_TAG}" ]; then
+            tags="${tags}"$'\n'"${IMAGE_REPOSITORY}:latest"
+          fi
+
+          {
+            echo 'tags<<EOF'
+            printf '%s\n' "$tags"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: 为私有依赖配置 SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -119,7 +135,7 @@ jobs:
           platforms: ${{ matrix.platforms }}
           push: true
           ssh: default
-          tags: ${{ matrix.image_repository }}:${{ matrix.tag }}
+          tags: ${{ steps.image-tags.outputs.tags }}
           build-args: ${{ join(matrix.build_args, '\n') }}
 
   update-state:
@@ -142,12 +158,11 @@ jobs:
           matrix.each do |service|
             ok = system(
               {
-                'DEPLOY_ENV' => ENV.fetch('TARGET_ENVIRONMENT'),
                 'SERVICE_NAME' => service.fetch('service'),
                 'SOURCE_REF' => ENV.fetch('SOURCE_REF'),
                 'SOURCE_SHA' => ENV.fetch('SOURCE_SHA'),
                 'IMAGE_REPOSITORY' => service.fetch('image_repository'),
-                'IMAGE_TAG' => ENV.fetch('SOURCE_SHA')
+                'IMAGE_TAG' => service.fetch('tag')
               },
               './scripts/update-deployment-state.sh'
             )
@@ -165,5 +180,5 @@ jobs:
             exit 0
           fi
           git add environments
-          git commit -m "chore: 更新 ${TARGET_ENVIRONMENT} 环境部署状态 (${SOURCE_SHA})"
+          git commit -m "chore: 更新部署状态 (${SOURCE_TAG})"
           git push
