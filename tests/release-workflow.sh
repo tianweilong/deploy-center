@@ -5,6 +5,8 @@ cd "$(dirname "$0")/.."
 file='.github/workflows/release-service.yml'
 
 grep -q 'packages: write' "$file"
+grep -q 'runs-on: \[self-hosted, Linux, ARM64\]' "$file"
+test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 2
 grep -q 'docker/setup-qemu-action@v3' "$file"
 grep -q 'docker/build-push-action@v6' "$file"
 grep -q 'registry: ghcr.io' "$file"
