@@ -119,10 +119,9 @@
 
 1. 检出当前仓库。
 2. 使用 `SOURCE_REPO_TOKEN` 检出应用源仓库到 `source/` 目录。
-3. 使用 `VK_PRIVATE_DEPLOY_KEY` 初始化 SSH agent，支持拉取私有依赖。
-4. 初始化 QEMU 与 Docker Buildx，支持多架构镜像构建。
-5. 使用 `GITHUB_TOKEN` 登录 `ghcr.io`。
-6. 通过 `docker/build-push-action@v6` 构建并推送镜像。
+3. 初始化 QEMU 与 Docker Buildx，支持多架构镜像构建。
+4. 使用 `GITHUB_TOKEN` 登录 `ghcr.io`。
+5. 通过 `docker/build-push-action@v6` 构建并推送镜像。
 
 当前镜像标签策略如下：
 
@@ -268,7 +267,6 @@ IMAGE_TAG='v1.2.3' \
 
 ### 8.1 仓库 Secrets
 
-- `VK_PRIVATE_DEPLOY_KEY`
 - `SOURCE_REPO_TOKEN`
 
 ### 8.2 GitHub Token 权限

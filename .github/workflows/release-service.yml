@@ -109,11 +109,6 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: 为私有依赖配置 SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VK_PRIVATE_DEPLOY_KEY }}
-
       - name: 配置 QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -134,7 +129,6 @@ jobs:
           file: ${{ matrix.context }}/${{ matrix.dockerfile }}
           platforms: ${{ matrix.platforms }}
           push: true
-          ssh: default
           tags: ${{ steps.image-tags.outputs.tags }}
           build-args: ${{ join(matrix.build_args, '\n') }}
 
