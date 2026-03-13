@@ -1,13 +1,14 @@
+---
 service: vibe-kanban-relay
 project: vibe-kanban
 repository: tianweilong/vibe-kanban
 deploy_mode: compose
 source:
-  ref: refs/heads/main
-  sha: CHANGE_ME_SHA
+  ref: refs/tags/v0.0.2
+  sha: 54b9e272b87d1f343019b7dcaa957153faa489ce
 image:
   repository: ghcr.io/tianweilong/vibe-kanban-relay
-  tag: CHANGE_ME_TAG
+  tag: v0.0.2
 compose:
   file: docker-compose.yml
   service_name: relay
