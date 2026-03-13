@@ -134,7 +134,6 @@ jobs:
           file: ${{ matrix.context }}/${{ matrix.dockerfile }}
           platforms: ${{ matrix.platforms }}
           push: true
-          ssh: default
           tags: ${{ steps.image-tags.outputs.tags }}
           build-args: ${{ join(matrix.build_args, '\n') }}
 
