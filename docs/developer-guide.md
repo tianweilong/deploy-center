@@ -65,6 +65,7 @@
 
 - `scripts/prepare-release-matrix.rb`：根据目标服务列表和环境变量生成 GitHub Actions matrix JSON。
 - `scripts/update-deployment-state.sh`：更新 `deployment.yaml` 中的 `source` 和 `image` 字段。
+- `scripts/commit-deployment-state-with-retry.sh`：基于最新 `origin/main` 重算部署状态，并在 push 冲突时自动重试提交。
 - `tests/*.sh`：以 Shell 形式覆盖关键工作流约束、矩阵生成和状态回写逻辑。
 
 ### 未来代理协议
@@ -141,7 +142,8 @@
    - `source.sha`
    - `image.repository`
    - `image.tag`
-4. 若 `environments/` 下产生变化，则自动提交并推送。
+4. 调用 `scripts/commit-deployment-state-with-retry.sh`，基于最新 `origin/main` 重算并提交状态。
+5. 若 push 因并发更新失败，则重新同步远端、再次生成状态并在上限内重试。
 
 也就是说，本仓库中的 Git 提交本身就是部署状态审计轨迹的一部分。
 
@@ -221,6 +223,7 @@
 ```bash
 ruby -e "require 'yaml'; Dir['**/*.yaml'].each { |f| YAML.load_file(f); puts f }"
 bash -n scripts/update-deployment-state.sh
+bash -n scripts/commit-deployment-state-with-retry.sh
 ```
 
 对应 GitHub Actions 中的 `validate-deployment-config.yml`。
@@ -229,6 +232,7 @@ bash -n scripts/update-deployment-state.sh
 
 ```bash
 bash tests/prepare-release-matrix.sh
+bash tests/commit-deployment-state-with-retry.sh
 bash tests/release-workflow.sh
 bash tests/update-deployment-state.sh
 bash tests/ghcr-references.sh
@@ -237,6 +241,7 @@ bash tests/ghcr-references.sh
 测试覆盖点分别是：
 
 - 构建矩阵生成是否正确
+- 部署状态提交流程在并发 push 冲突下是否会基于最新远端状态重算并重试
 - 发布工作流是否仍符合 GHCR 方案
 - 部署状态更新脚本是否正确改写 YAML
 - 仓库中是否仍错误残留旧镜像仓库引用
@@ -263,7 +268,21 @@ IMAGE_TAG='v1.2.3' \
 ./scripts/update-deployment-state.sh
 ```
 
+这个脚本只负责改写单个 `deployment.yaml`，不负责 Git 提交、push 或并发冲突处理。
+
 建议在临时目录或测试夹具中验证，不要直接对真实环境文件做试验性覆盖。
+
+如果你要本地验证“基于最新 `origin/main` 重算并重试提交”的完整行为，应改为使用：
+
+```bash
+RELEASE_MATRIX='{"include":[{"service":"vibe-kanban-remote","image_repository":"ghcr.io/tianweilong/vibe-kanban-remote","tag":"v1.2.3"}]}' \
+SOURCE_REF='refs/tags/v1.2.3' \
+SOURCE_SHA='abc1234' \
+SOURCE_TAG='v1.2.3' \
+./scripts/commit-deployment-state-with-retry.sh
+```
+
+该脚本会在每次尝试前先同步最新 `origin/main`，重新执行状态写入，并仅在 `git push` 失败时重试。
 
 ## 8. GitHub 配置与外部依赖
 

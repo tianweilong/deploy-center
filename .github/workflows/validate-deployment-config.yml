@@ -13,4 +13,6 @@ jobs:
       - name: 校验部署 YAML
         run: ruby -e "require 'yaml'; Dir['**/*.yaml'].each { |f| YAML.load_file(f); puts f }"
       - name: 校验辅助脚本
-        run: bash -n scripts/update-deployment-state.sh
+        run: |
+          bash -n scripts/update-deployment-state.sh
+          bash -n scripts/commit-deployment-state-with-retry.sh

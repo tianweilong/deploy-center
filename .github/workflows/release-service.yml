@@ -141,38 +141,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: 更新部署状态文件
+      - name: 更新部署状态并提交
         env:
           RELEASE_MATRIX: ${{ needs.prepare.outputs.matrix }}
         run: |
           set -euo pipefail
-          ruby <<'RUBY'
-          require 'json'
-          matrix = JSON.parse(ENV.fetch('RELEASE_MATRIX')).fetch('include')
-          matrix.each do |service|
-            ok = system(
-              {
-                'SERVICE_NAME' => service.fetch('service'),
-                'SOURCE_REF' => ENV.fetch('SOURCE_REF'),
-                'SOURCE_SHA' => ENV.fetch('SOURCE_SHA'),
-                'IMAGE_REPOSITORY' => service.fetch('image_repository'),
-                'IMAGE_TAG' => service.fetch('tag')
-              },
-              './scripts/update-deployment-state.sh'
-            )
-            abort("更新 #{service.fetch('service')} 失败") unless ok
-          end
-          RUBY
-
-      - name: 提交部署状态变更
-        run: |
-          set -euo pipefail
-          git config user.email 'action@github.com'
-          git config user.name 'GitHub Action'
-          if git diff --quiet; then
-            echo '没有可提交的部署状态变更。'
-            exit 0
-          fi
-          git add environments
-          git commit -m "chore: 更新部署状态 (${SOURCE_TAG})"
-          git push
+          ./scripts/commit-deployment-state-with-retry.sh
