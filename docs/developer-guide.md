@@ -120,7 +120,7 @@
 
 1. 检出当前仓库。
 2. 使用 `SOURCE_REPO_TOKEN` 检出应用源仓库到 `source/` 目录。
-3. 初始化 Docker Buildx，并保留 QEMU 配置步骤；当前矩阵仅构建 `linux/arm64` 镜像。
+3. 初始化 Docker Buildx，并保留 QEMU 配置步骤；当前默认构建 `linux/amd64,linux/arm64` 镜像，服务可按需单独覆盖平台配置。
 4. 使用 `GITHUB_TOKEN` 登录 `ghcr.io`。
 5. 通过 `docker/build-push-action@v6` 构建并推送镜像。
 
@@ -202,15 +202,16 @@
 - `image_repository`
 - `context`
 - `dockerfile`
-- `platforms`
 - `build_args`
+
+其中 `platforms` 为可选字段：未配置时回退到工作流中的默认值 `linux/amd64,linux/arm64`；仅当某个服务需要限制构建平台时，才需要显式填写。
 
 当前两个服务的差异点：
 
 - `vibe-kanban-remote` 需要 build arg `VITE_RELAY_API_BASE_URL`
 - `vibe-kanban-relay` 不需要额外 build args
 
-当前两个服务的 `platforms` 都固定为 `linux/arm64`，用于规避 ARM64 自建 Runner 上通过 QEMU 模拟 `linux/amd64` 构建时的稳定性问题。
+当前两个服务默认都继承工作流中的 `linux/amd64,linux/arm64` 双平台设置。
 
 如果新增服务，这个文件通常是第一个要改、也是最容易漏配的地方。
 

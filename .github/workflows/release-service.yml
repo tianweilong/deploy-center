@@ -37,7 +37,7 @@ env:
   SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
   SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}
   TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
-  DEFAULT_IMAGE_PLATFORMS: linux/arm64
+  DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
   prepare:
