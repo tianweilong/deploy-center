@@ -1,4 +1,4 @@
-name: Release Service
+name: 发布服务
 
 on:
   repository_dispatch:
@@ -7,133 +7,178 @@ on:
   workflow_dispatch:
     inputs:
       source_repository:
-        description: Source repository
+        description: 源仓库
         required: true
         type: string
       source_ref:
-        description: Source ref
+        description: 源引用
         required: true
         type: string
       source_sha:
-        description: Source SHA
+        description: 源提交 SHA
         required: true
         type: string
-      target_environment:
-        description: Target environment
+      source_tag:
+        description: 源标签
         required: true
-        type: choice
-        options:
-          - dev
-          - prod
+        type: string
       services:
-        description: Comma-separated services
+        description: 逗号分隔的服务列表
         required: true
         type: string
 
 permissions:
   contents: write
+  packages: write
 
 env:
   SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || inputs.source_repository }}
   SOURCE_REF: ${{ github.event.client_payload.source_ref || inputs.source_ref }}
   SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
-  TARGET_ENVIRONMENT: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
+  SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}
   TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
+  DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
     env:
       VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Checkout source repository
+      - name: 校验发布输入
+        run: |
+          set -euo pipefail
+          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${SOURCE_TAG}" ] || [ -z "${TARGET_SERVICES}" ]; then
+            echo '缺少必填发布输入。' >&2
+            exit 1
+          fi
+
+      - id: matrix
+        name: 构建服务矩阵
+        run: |
+          set -euo pipefail
+          matrix=$(TARGET_SERVICES="${TARGET_SERVICES}" \
+            SOURCE_TAG="${SOURCE_TAG}" \
+            VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
+            ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json)
+          {
+            echo 'matrix<<EOF'
+            echo "$matrix"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
         uses: actions/checkout@v6
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
           ref: ${{ env.SOURCE_SHA }}
           path: source
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
 
-      - name: Validate release inputs
+      - id: image-tags
+        name: 生成镜像标签
+        working-directory: source
+        env:
+          IMAGE_REPOSITORY: ${{ matrix.image_repository }}
         run: |
           set -euo pipefail
-          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
-            echo 'Missing required release input.' >&2
-            exit 1
-          fi
-          if [[ "${TARGET_SERVICES}" == *"vibe-kanban-remote"* ]]; then
-            if [ -z "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" ] || [[ "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}" == CHANGE_ME* ]]; then
-              echo 'Environment variable VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL is not configured.' >&2
-              exit 1
-            fi
+          latest_tag=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
+          tags="${IMAGE_REPOSITORY}:${SOURCE_TAG}"
+
+          if [ -n "${latest_tag}" ] && [ "${latest_tag}" = "${SOURCE_TAG}" ]; then
+            tags="${tags}"$'\n'"${IMAGE_REPOSITORY}:latest"
           fi
 
-      - name: Setup SSH agent for private dependencies
+          {
+            echo 'tags<<EOF'
+            printf '%s\n' "$tags"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 为私有依赖配置 SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VK_PRIVATE_DEPLOY_KEY }}
 
-      - name: Setup Docker Buildx
+      - name: 配置 QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: 配置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Tencent Cloud CCR
+      - name: 登录 GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.TENCENT_REGISTRY }}
-          username: ${{ secrets.TENCENT_REGISTRY_USERNAME }}
-          password: ${{ secrets.TENCENT_REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install source dependencies for make metadata
-        working-directory: source
-        run: pnpm install
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          push: true
+          ssh: default
+          tags: ${{ steps.image-tags.outputs.tags }}
+          build-args: ${{ join(matrix.build_args, '\n') }}
 
-      - name: Build, push, and update deployment state
+  update-state:
+    needs:
+      - prepare
+      - build
+    if: ${{ needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 更新部署状态文件
+        env:
+          RELEASE_MATRIX: ${{ needs.prepare.outputs.matrix }}
         run: |
           set -euo pipefail
-          IFS=',' read -ra services <<< "${TARGET_SERVICES}"
-          for raw in "${services[@]}"; do
-            service="$(echo "$raw" | xargs)"
-            case "$service" in
-              vibe-kanban-remote)
-                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-remote"
-                (cd source && make push-remote \
-                  REMOTE_PLATFORM='linux/amd64' \
-                  REMOTE_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}" \
-                  VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}")
-                ;;
-              vibe-kanban-relay)
-                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-relay"
-                (cd source && make push-relay \
-                  REMOTE_PLATFORM='linux/amd64' \
-                  RELAY_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}")
-                ;;
-              *)
-                echo "Unsupported service: $service" >&2
-                exit 1
-                ;;
-            esac
-            TARGET_FILE="environments/${TARGET_ENVIRONMENT}/${service}/deployment.yaml" \
-            DEPLOY_ENV="${TARGET_ENVIRONMENT}" \
-            SERVICE_NAME="$service" \
-            SOURCE_REF="${SOURCE_REF}" \
-            SOURCE_SHA="${SOURCE_SHA}" \
-            IMAGE_REPOSITORY="$image_repo" \
-            IMAGE_TAG="${SOURCE_SHA}" \
-            ./scripts/update-deployment-state.sh
-          done
+          ruby <<'RUBY'
+          require 'json'
+          matrix = JSON.parse(ENV.fetch('RELEASE_MATRIX')).fetch('include')
+          matrix.each do |service|
+            ok = system(
+              {
+                'SERVICE_NAME' => service.fetch('service'),
+                'SOURCE_REF' => ENV.fetch('SOURCE_REF'),
+                'SOURCE_SHA' => ENV.fetch('SOURCE_SHA'),
+                'IMAGE_REPOSITORY' => service.fetch('image_repository'),
+                'IMAGE_TAG' => service.fetch('tag')
+              },
+              './scripts/update-deployment-state.sh'
+            )
+            abort("更新 #{service.fetch('service')} 失败") unless ok
+          end
+          RUBY
 
-      - name: Commit deployment state updates
+      - name: 提交部署状态变更
         run: |
+          set -euo pipefail
           git config user.email 'action@github.com'
           git config user.name 'GitHub Action'
           if git diff --quiet; then
-            echo 'No deployment state changes to commit.'
+            echo '没有可提交的部署状态变更。'
             exit 0
           fi
           git add environments
-          git commit -m "chore: update deployment state for ${TARGET_ENVIRONMENT} (${SOURCE_SHA})"
+          git commit -m "chore: 更新部署状态 (${SOURCE_TAG})"
           git push

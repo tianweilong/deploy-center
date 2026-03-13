@@ -1,16 +1,18 @@
-# Rollout Guide
+# 发布落地指南
 
-## Required repository secrets
+## 必需的仓库密钥
 
-- `TENCENT_REGISTRY`
-- `TENCENT_REGISTRY_USERNAME`
-- `TENCENT_REGISTRY_PASSWORD`
 - `VK_PRIVATE_DEPLOY_KEY`
 - `SOURCE_REPO_TOKEN`
 
-## Required application-repo trigger secret
+## 必需的部署主机凭据
 
-The source repository still needs one narrow trigger secret to start workflows in `deploy-center`.
-Recommended name in `tianweilong/vibe-kanban`:
+- 具备 `read:packages` 的经典 PAT
+- 登录命令：`docker login ghcr.io`
+
+## 应用仓库必需的触发密钥
+
+源仓库仍需要一个权限收敛的触发密钥，用来启动 `deploy-center` 中的工作流。
+在 `tianweilong/vibe-kanban` 中建议使用以下名称：
 
 - `DEPLOY_CENTER_TRIGGER_TOKEN`

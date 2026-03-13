@@ -1,4 +1,0 @@
-services:
-  relay:
-    image: ccr.ccs.tencentyun.com/vino/vibe-kanban-relay:CHANGE_ME_TAG
-    restart: unless-stopped

@@ -1,13 +1,12 @@
 service: vibe-kanban-remote
 project: vibe-kanban
 repository: tianweilong/vibe-kanban
-environment: dev
 deploy_mode: compose
 source:
   ref: refs/heads/main
   sha: CHANGE_ME_SHA
 image:
-  repository: ccr.ccs.tencentyun.com/vino/vibe-kanban-remote
+  repository: ghcr.io/tianweilong/vibe-kanban-remote
   tag: CHANGE_ME_TAG
 compose:
   file: docker-compose.yml
