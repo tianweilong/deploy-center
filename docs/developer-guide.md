@@ -101,7 +101,7 @@
 
 ### 4.2 prepare 阶段
 
-`prepare` 任务会做三件事：
+`prepare` 任务运行在 GitHub 托管的 `ubuntu-latest` Runner 上，会做三件事：
 
 1. 校验发布输入是否完整。
 2. 读取仓库变量中的构建参数。
@@ -115,7 +115,7 @@
 
 ### 4.3 build 阶段
 
-`build` 任务会并行处理矩阵中的服务项，主要步骤如下：
+`build` 任务运行在带 `self-hosted`、`Linux`、`ARM64` 标签的自建 Runner 上，并行处理矩阵中的服务项，主要步骤如下：
 
 1. 检出当前仓库。
 2. 使用 `SOURCE_REPO_TOKEN` 检出应用源仓库到 `source/` 目录。
@@ -129,6 +129,8 @@
 - 仅当 `SOURCE_TAG` 是仓库中最新的正式语义化版本标签时，额外推送 `latest`。
 
 ### 4.4 update-state 阶段
+
+`update-state` 任务继续运行在 GitHub 托管的 `ubuntu-latest` Runner 上。
 
 如果 `build` 全部成功，`update-state` 任务会：
 
