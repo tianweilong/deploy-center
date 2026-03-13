@@ -6,7 +6,7 @@
       "image_repository": "ghcr.io/tianweilong/vibe-kanban-remote",
       "context": "source",
       "dockerfile": "crates/remote/Dockerfile",
-      "platforms": "linux/amd64,linux/arm64",
+      "platforms": "linux/arm64",
       "build_args": [
         {
           "name": "VITE_RELAY_API_BASE_URL",
@@ -19,7 +19,7 @@
       "image_repository": "ghcr.io/tianweilong/vibe-kanban-relay",
       "context": "source",
       "dockerfile": "crates/relay-tunnel/Dockerfile",
-      "platforms": "linux/amd64,linux/arm64",
+      "platforms": "linux/arm64",
       "build_args": []
     }
   ]

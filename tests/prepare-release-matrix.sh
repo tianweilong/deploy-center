@@ -23,7 +23,8 @@ ruby -rjson -e '
 
   raise "remote 镜像仓库错误" unless remote.fetch("image_repository") == "ghcr.io/tianweilong/vibe-kanban-remote"
   raise "relay 镜像仓库错误" unless relay.fetch("image_repository") == "ghcr.io/tianweilong/vibe-kanban-relay"
-  raise "平台配置错误" unless remote.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "remote 平台配置错误" unless remote.fetch("platforms") == "linux/arm64"
+  raise "relay 平台配置错误" unless relay.fetch("platforms") == "linux/arm64"
   raise "缺少构建参数" unless remote.fetch("build_args") == ["VITE_RELAY_API_BASE_URL=https://relay.example.com"]
   raise "relay 不应需要构建参数" unless relay.fetch("build_args") == []
   raise "镜像标签错误" unless remote.fetch("tag") == "v1.2.3"
