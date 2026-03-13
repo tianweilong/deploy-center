@@ -2,7 +2,6 @@
 
 ## 必需的仓库密钥
 
-- `VK_PRIVATE_DEPLOY_KEY`
 - `SOURCE_REPO_TOKEN`
 
 ## 必需的部署主机凭据
