@@ -9,6 +9,7 @@ requested_services = ENV.fetch('TARGET_SERVICES')
                     .reject(&:empty?)
                     .uniq
 source_tag = ENV.fetch('SOURCE_TAG')
+default_image_platforms = ENV.fetch('DEFAULT_IMAGE_PLATFORMS', '').strip
 service_map = config.fetch('services').each_with_object({}) do |service, memo|
   memo[service.fetch('service')] = service
 end
@@ -27,12 +28,19 @@ include_items = requested_services.map do |name|
     "#{build_arg.fetch('name')}=#{value}"
   end
 
+  platforms = service.fetch('platforms', '').to_s.strip
+  if platforms.empty?
+    abort('缺少默认镜像平台配置：DEFAULT_IMAGE_PLATFORMS') if default_image_platforms.empty?
+
+    platforms = default_image_platforms
+  end
+
   {
     'service' => service.fetch('service'),
     'image_repository' => service.fetch('image_repository'),
     'context' => service.fetch('context'),
     'dockerfile' => service.fetch('dockerfile'),
-    'platforms' => service.fetch('platforms'),
+    'platforms' => platforms,
     'build_args' => build_args,
     'tag' => source_tag
   }
