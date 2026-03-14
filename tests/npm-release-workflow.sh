@@ -12,8 +12,13 @@ if grep -q 'make npx-dev-build' "$script"; then
   exit 1
 fi
 grep -q 'NPM_PACKAGE_NAME' "$script"
+grep -q 'root_version' "$script"
+grep -q 'mapped_base_patch' "$script"
+grep -q 'release_seq' "$script"
+grep -q 'PUBLISH_VERSION' "$script"
 grep -q 'pnpm run build:npx' "$script"
 grep -q 'NODE_AUTH_TOKEN' "$workflow"
+grep -q 'npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version' "$script"
 grep -q 'npm publish' "$script"
 if grep -q -- '--provenance' "$script"; then
   echo 'NPM_TOKEN 发布脚本不应再带 --provenance。' >&2

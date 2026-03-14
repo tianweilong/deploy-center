@@ -51,6 +51,21 @@
 
 - `@vino.tian/vibe-kanban`
 
+## npm 版本映射规则
+
+`@vino.tian/vibe-kanban` 的正式发布不再直接复用源码仓库里的静态版本号，而是采用“基线版本 + 发布序号”的映射规则：
+
+- 根 `package.json` 的 `version` 作为上游基线版本，例如 `1.2.30`
+- 合法发布 tag 必须为 `vX.Y.(Zx100+N)`，例如 `v1.2.3001`
+- npm 发布版本等于 tag 去掉前缀 `v` 后的值，也就是 `1.2.3001`
+- 其中 `N` 的合法范围是 `1..99`
+
+这意味着：
+
+- 源码仓库根版本可以继续表示上游基线版本
+- `deploy-center` 会在 CI 工作目录里临时改写 `npx-cli/package.json` 的版本
+- 该改动不会提交回源码仓库
+
 ## 镜像构建平台
 
 `release-service` 工作流默认同时构建以下平台镜像：
@@ -66,6 +81,7 @@
 
 - `pnpm i --frozen-lockfile`
 - `pnpm run build:npx`
+- `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`
 - `NODE_AUTH_TOKEN=${NPM_TOKEN} npm publish --access public`
 
 最终用户通过以下命令启动本地服务：

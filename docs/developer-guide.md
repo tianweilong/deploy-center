@@ -139,10 +139,28 @@
 1. 检出应用源仓库到 `source/`。
 2. 设置 Node.js、pnpm 与 Rust 工具链。
 3. 校验 `npx-cli/package.json` 中的包名与请求中的 `npm_package_name` 一致。
-4. 校验根目录与 `npx-cli` 的版本都等于 `SOURCE_TAG` 去掉前缀 `v` 后的值。
-5. 执行 `pnpm i --frozen-lockfile`。
-6. 执行 `pnpm run build:npx` 生成可直接通过 `npx @vino.tian/vibe-kanban` 启动的 tgz 包。
-7. 使用 `NODE_AUTH_TOKEN` 执行 `npm publish --access public`；若版本已存在则跳过发布。
+4. 读取根 `package.json` 中的上游基线版本，并校验 `SOURCE_TAG` 是否符合 `vX.Y.(Zx100+N)` 规则。
+5. 基于 `SOURCE_TAG` 计算本次的 npm 发布版本 `PUBLISH_VERSION`。
+6. 执行 `pnpm i --frozen-lockfile`。
+7. 执行 `pnpm run build:npx` 生成可直接通过 `npx @vino.tian/vibe-kanban` 启动的 tgz 包。
+8. 在 CI 工作目录里对 `source/npx-cli/package.json` 执行 `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`。
+9. 使用 `NODE_AUTH_TOKEN` 执行 `npm publish --access public`；若版本已存在则跳过发布。
+
+### 4.4.1 npm 版本映射
+
+当根 `package.json` 的基线版本为 `X.Y.Z` 时：
+
+- 合法发布 tag 必须为 `vX.Y.(Zx100+N)`
+- 其中 `N` 的合法范围是 `1..99`
+- npm 发布版本等于 tag 去掉前缀 `v` 后的值
+
+例如：
+
+- 基线版本：`1.2.30`
+- 合法 tag：`v1.2.3001`
+- npm 发布版本：`1.2.3001`
+
+这套规则允许 fork 基于同一个上游版本做多次发布，同时不需要把根 `package.json` 改成每次发布后的版本。
 
 ### 4.5 update-state 阶段
 
@@ -326,6 +344,7 @@ SOURCE_TAG='v1.2.3' \
 - 当前 npm 包名固定为 `@vino.tian/vibe-kanban`
 - 统一发布 payload 中若包含 `npm`，必须同时提供 `npm_package_name`
 - 需要在 `deploy-center` 仓库配置 `NPM_TOKEN`，且该 token 必须是对目标包具备写权限的 granular access token
+- npm 发布版本由 `SOURCE_TAG` 按映射规则推导，不要求源码仓库中 `npx-cli/package.json` 的静态版本与 tag 一致
 
 ### 8.6 应用仓库触发密钥
 

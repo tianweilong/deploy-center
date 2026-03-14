@@ -34,6 +34,7 @@ grep -q 'has_npm' "$file"
 grep -q 'release-npm:' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'NODE_AUTH_TOKEN' "$file"
+grep -q '\[self-hosted, macOS, ARM64\]' "$file"
 if grep -q -- '--provenance' "$file"; then
   echo '切换到 NPM_TOKEN 后 workflow 不应再依赖 provenance 发布。' >&2
   exit 1
