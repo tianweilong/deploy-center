@@ -4,11 +4,11 @@ project: vibe-kanban
 repository: tianweilong/vibe-kanban
 deploy_mode: compose
 source:
-  ref: refs/tags/v0.0.8
-  sha: d7803b9f8fd3057351201049edc92b85f72f708b
+  ref: refs/tags/v0.1.3003
+  sha: 5ee554c828a5c3131a347e8feeb955835cc6b448
 image:
   repository: ghcr.io/tianweilong/vibe-kanban-remote
-  tag: v0.0.8
+  tag: v0.1.3003
 compose:
   file: docker-compose.yml
   service_name: remote
