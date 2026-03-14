@@ -6,7 +6,6 @@ SOURCE_DIR="${1:-source}"
 : "${NPM_PACKAGE_NAME:?缺少 NPM_PACKAGE_NAME}"
 : "${NPM_PACKAGE_DIR:?缺少 NPM_PACKAGE_DIR}"
 : "${NPM_VERSION_STRATEGY:?缺少 NPM_VERSION_STRATEGY}"
-: "${NODE_AUTH_TOKEN:?缺少 NODE_AUTH_TOKEN}"
 
 cd "$SOURCE_DIR"
 
@@ -104,5 +103,5 @@ if npm view "${actual_package_name}@${PUBLISH_VERSION}" version >/dev/null 2>&1;
   exit 0
 fi
 
-echo "通过 NPM_TOKEN 发布 ${PACKAGE_FILE} -> ${actual_package_name}@${PUBLISH_VERSION}"
+echo "通过 Trusted Publishing 发布 ${PACKAGE_FILE} -> ${actual_package_name}@${PUBLISH_VERSION}"
 npm publish "$PACKAGE_FILE" --access public

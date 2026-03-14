@@ -20,11 +20,19 @@ grep -q 'mapped_base_patch' "$script"
 grep -q 'release_seq' "$script"
 grep -q 'PUBLISH_VERSION' "$script"
 grep -q 'pnpm run build:npx' "$script"
-grep -q 'NODE_AUTH_TOKEN' "$workflow"
+grep -q 'id-token: write' "$workflow"
 grep -q 'npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version' "$script"
 grep -q 'npm publish' "$script"
+if grep -q 'NODE_AUTH_TOKEN' "$script"; then
+  echo 'Trusted Publishing 发布脚本不应再依赖 NODE_AUTH_TOKEN。' >&2
+  exit 1
+fi
+if grep -q 'NODE_AUTH_TOKEN' "$workflow"; then
+  echo 'Trusted Publishing workflow 不应再注入 NODE_AUTH_TOKEN。' >&2
+  exit 1
+fi
 if grep -q -- '--provenance' "$script"; then
-  echo 'NPM_TOKEN 发布脚本不应再带 --provenance。' >&2
+  echo 'Trusted Publishing 由 npm 自动处理 provenance，不应手工追加 --provenance。' >&2
   exit 1
 fi
 grep -q 'package.json' "$script"
