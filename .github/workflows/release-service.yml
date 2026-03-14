@@ -50,6 +50,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
 
 env:
   SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || inputs.source_repository }}
@@ -163,7 +164,7 @@ jobs:
   build:
     needs: prepare
     if: ${{ needs.prepare.outputs.has_services == 'true' }}
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
@@ -241,7 +242,7 @@ jobs:
   release-npm:
     needs: prepare
     if: ${{ needs.prepare.outputs.has_npm == 'true' }}
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
 
@@ -265,7 +266,7 @@ jobs:
         with:
           toolchain: nightly-2025-12-04
 
-      - name: 构建并通过 NPM_TOKEN 发布 npm 包
+      - name: 构建并通过 Trusted Publishing 发布 npm 包
         env:
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
           NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
@@ -273,6 +274,5 @@ jobs:
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           ./scripts/release-npm-package.sh source
