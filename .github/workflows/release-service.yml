@@ -30,6 +30,22 @@ on:
         description: npm 包名
         required: false
         type: string
+      npm_package_dir:
+        description: npm 包所在目录
+        required: false
+        type: string
+      npm_version_strategy:
+        description: npm 版本策略
+        required: false
+        type: string
+      npm_base_version_file:
+        description: 基线版本文件
+        required: false
+        type: string
+      npm_version_patch_factor:
+        description: patch 映射因子
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -42,6 +58,10 @@ env:
   SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}
   RELEASE_TARGETS: ${{ github.event.client_payload.release_targets || inputs.release_targets }}
   NPM_PACKAGE_NAME: ${{ github.event.client_payload.npm_package_name || inputs.npm_package_name }}
+  NPM_PACKAGE_DIR: ${{ github.event.client_payload.npm_package_dir || inputs.npm_package_dir }}
+  NPM_VERSION_STRATEGY: ${{ github.event.client_payload.npm_version_strategy || inputs.npm_version_strategy }}
+  NPM_BASE_VERSION_FILE: ${{ github.event.client_payload.npm_base_version_file || inputs.npm_base_version_file }}
+  NPM_VERSION_PATCH_FACTOR: ${{ github.event.client_payload.npm_version_patch_factor || inputs.npm_version_patch_factor }}
   DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
@@ -70,9 +90,16 @@ jobs:
             exit 1
           fi
 
-          if printf '%s' "${RELEASE_TARGETS}" | grep -Eq '(^|,)[[:space:]]*npm([[:space:]]*,|$)' && [ -z "${NPM_PACKAGE_NAME}" ]; then
-            echo '当 release_targets 包含 npm 时必须提供 npm_package_name。' >&2
-            exit 1
+          if printf '%s' "${RELEASE_TARGETS}" | grep -Eq '(^|,)[[:space:]]*npm([[:space:]]*,|$)'; then
+            if [ -z "${NPM_PACKAGE_NAME}" ] || [ -z "${NPM_PACKAGE_DIR}" ] || [ -z "${NPM_VERSION_STRATEGY}" ]; then
+              echo '当 release_targets 包含 npm 时必须提供 npm_package_name、npm_package_dir 和 npm_version_strategy。' >&2
+              exit 1
+            fi
+
+            if [ "${NPM_VERSION_STRATEGY}" = 'base_patch_offset' ] && { [ -z "${NPM_BASE_VERSION_FILE}" ] || [ -z "${NPM_VERSION_PATCH_FACTOR}" ]; }; then
+              echo '当 npm_version_strategy=base_patch_offset 时必须提供 npm_base_version_file 和 npm_version_patch_factor。' >&2
+              exit 1
+            fi
           fi
 
       - id: targets
@@ -242,6 +269,10 @@ jobs:
         env:
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
           NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
+          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
+          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
+          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
+          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           ./scripts/release-npm-package.sh source

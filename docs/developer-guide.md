@@ -101,6 +101,10 @@
 - `SOURCE_TAG`
 - `RELEASE_TARGETS`
 - `NPM_PACKAGE_NAME`
+- `NPM_PACKAGE_DIR`
+- `NPM_VERSION_STRATEGY`
+- `NPM_BASE_VERSION_FILE`（按策略可选）
+- `NPM_VERSION_PATCH_FACTOR`（按策略可选）
 
 ### 4.2 prepare 阶段
 
@@ -138,11 +142,46 @@
 
 1. 检出应用源仓库到 `source/`。
 2. 设置 Node.js、pnpm 与 Rust 工具链。
-3. 校验 `npx-cli/package.json` 中的包名与请求中的 `npm_package_name` 一致。
-4. 校验根目录与 `npx-cli` 的版本都等于 `SOURCE_TAG` 去掉前缀 `v` 后的值。
+3. 读取 `npm_package_dir` 指向的 `package.json`，并校验其中的包名与请求中的 `npm_package_name` 一致。
+4. 按 `npm_version_strategy` 选择版本策略：
+   - `package_json`：直接使用包自身版本
+   - `source_tag`：直接使用 `SOURCE_TAG` 去掉前缀 `v` 后的值
+   - `base_patch_offset`：基于 `npm_base_version_file` 和 `npm_version_patch_factor` 校验映射关系并计算发布版本
 5. 执行 `pnpm i --frozen-lockfile`。
-6. 执行 `pnpm run build:npx` 生成可直接通过 `npx @vino.tian/vibe-kanban` 启动的 tgz 包。
-7. 使用 `NODE_AUTH_TOKEN` 执行 `npm publish --access public`；若版本已存在则跳过发布。
+6. 执行 `pnpm run build:npx` 生成 tgz 包。
+7. 在 CI 工作目录里对 `npm_package_dir` 下的 `package.json` 执行 `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`。
+8. 使用 `NODE_AUTH_TOKEN` 执行 `npm publish --access public`；若版本已存在则跳过发布。
+
+### 4.4.1 npm 版本策略
+
+`deploy-center` 本身不写死任何源仓库的 npm 目录结构或版本规则，而是通过 dispatch / workflow 输入获取以下元数据：
+
+- `npm_package_dir`：目标 npm 包所在目录
+- `npm_version_strategy`：版本策略
+- `npm_base_version_file`：基线版本文件（按策略可选）
+- `npm_version_patch_factor`：patch 映射因子（按策略可选）
+
+当前支持的版本策略：
+
+- `package_json`
+- `source_tag`
+- `base_patch_offset`
+
+### 4.4.2 npm 版本映射（`vibe-kanban` 当前用法）
+
+当根 `package.json` 的基线版本为 `X.Y.Z` 时：
+
+- 合法发布 tag 必须为 `vX.Y.(Zx100+N)`
+- 其中 `N` 的合法范围是 `1..99`
+- npm 发布版本等于 tag 去掉前缀 `v` 后的值
+
+例如：
+
+- 基线版本：`1.2.30`
+- 合法 tag：`v1.2.3001`
+- npm 发布版本：`1.2.3001`
+
+这套规则允许 fork 基于同一个上游版本做多次发布，同时不需要把根 `package.json` 改成每次发布后的版本。
 
 ### 4.5 update-state 阶段
 
@@ -326,6 +365,7 @@ SOURCE_TAG='v1.2.3' \
 - 当前 npm 包名固定为 `@vino.tian/vibe-kanban`
 - 统一发布 payload 中若包含 `npm`，必须同时提供 `npm_package_name`
 - 需要在 `deploy-center` 仓库配置 `NPM_TOKEN`，且该 token 必须是对目标包具备写权限的 granular access token
+- npm 发布版本由 `SOURCE_TAG` 按映射规则推导，不要求源码仓库中 `npx-cli/package.json` 的静态版本与 tag 一致
 
 ### 8.6 应用仓库触发密钥
 

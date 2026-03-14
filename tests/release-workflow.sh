@@ -22,6 +22,8 @@ grep -q 'source_tag' "$file"
 grep -q 'SOURCE_TAG' "$file"
 grep -q 'release_targets' "$file"
 grep -q 'npm_package_name' "$file"
+grep -q 'npm_package_dir' "$file"
+grep -q 'npm_version_strategy' "$file"
 if grep -q 'LEGACY_TARGET_SERVICES' "$file"; then
   echo '不应再保留 LEGACY_TARGET_SERVICES 兼容变量。' >&2
   exit 1
@@ -34,6 +36,7 @@ grep -q 'has_npm' "$file"
 grep -q 'release-npm:' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'NODE_AUTH_TOKEN' "$file"
+grep -q '\[self-hosted, macOS, ARM64\]' "$file"
 if grep -q -- '--provenance' "$file"; then
   echo '切换到 NPM_TOKEN 后 workflow 不应再依赖 provenance 发布。' >&2
   exit 1
