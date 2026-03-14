@@ -74,6 +74,7 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       has_services: ${{ steps.targets.outputs.has_services }}
       has_npm: ${{ steps.targets.outputs.has_npm }}
+      service_config_path: ${{ steps.targets.outputs.service_config_path }}
       target_services: ${{ steps.targets.outputs.target_services }}
     steps:
       - uses: actions/checkout@v6
@@ -109,6 +110,8 @@ jobs:
           set -euo pipefail
           target_services=''
           has_npm=false
+          source_repository_name="${SOURCE_REPOSITORY##*/}"
+          service_config_path="config/services.${source_repository_name}.json"
 
           IFS=',' read -r -a targets <<< "${RELEASE_TARGETS}"
           for raw_target in "${targets[@]}"; do
@@ -119,6 +122,9 @@ jobs:
                 ;;
               relay)
                 target_services="${target_services},vibe-kanban-relay"
+                ;;
+              new-api)
+                target_services="${target_services},new-api"
                 ;;
               npm)
                 has_npm=true
@@ -140,6 +146,11 @@ jobs:
             echo 'has_services=false' >> "$GITHUB_OUTPUT"
           fi
           echo "has_npm=${has_npm}" >> "$GITHUB_OUTPUT"
+          if [ -n "${target_services}" ] && [ ! -f "${service_config_path}" ]; then
+            echo "缺少服务构建配置文件：${service_config_path}" >&2
+            exit 1
+          fi
+          echo "service_config_path=${service_config_path}" >> "$GITHUB_OUTPUT"
           echo "target_services=${target_services}" >> "$GITHUB_OUTPUT"
 
       - id: matrix
@@ -154,7 +165,7 @@ jobs:
           matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
             SOURCE_TAG="${SOURCE_TAG}" \
             VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
-            ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json)
+            ruby scripts/prepare-release-matrix.rb "${{ steps.targets.outputs.service_config_path }}")
           {
             echo 'matrix<<EOF'
             echo "$matrix"
@@ -311,6 +322,7 @@ jobs:
 
       - name: 构建并通过 Trusted Publishing 发布 npm 包
         env:
+          NODE_OPTIONS: --max-old-space-size=6144
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
           NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
           NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}

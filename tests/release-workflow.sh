@@ -28,6 +28,9 @@ grep -q 'linux/amd64,linux/arm64' "$file"
 grep -q 'source_tag' "$file"
 grep -q 'SOURCE_TAG' "$file"
 grep -q 'release_targets' "$file"
+grep -q 'new-api)' "$file"
+grep -q 'config/services\.\${source_repository_name}\.json' "$file"
+grep -q '缺少服务构建配置文件' "$file"
 grep -q 'npm_package_name' "$file"
 grep -q 'npm_package_dir' "$file"
 grep -q 'npm_version_strategy' "$file"
@@ -58,6 +61,10 @@ grep -q 'hw.ncpu' "$file"
 grep -q 'hw.memsize' "$file"
 grep -q 'node --version' "$file"
 grep -q 'npm --version' "$file"
+if ! grep -q 'NODE_OPTIONS: --max-old-space-size=6144' "$file"; then
+  echo 'npm 发布步骤需要显式设置 NODE_OPTIONS 以抬高 Node 堆上限。' >&2
+  exit 1
+fi
 if grep -q 'NODE_AUTH_TOKEN' "$file"; then
   echo 'Trusted Publishing 的 workflow 不应再显式注入 NODE_AUTH_TOKEN。' >&2
   exit 1

@@ -31,6 +31,28 @@ ruby -rjson -e '
   raise "镜像标签错误" unless remote.fetch("tag") == "v1.2.3"
 ' <<< "$output"
 
+new_api_output=$( \
+  TARGET_SERVICES='new-api' \
+  SOURCE_TAG='v2.3.4' \
+  DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
+  ruby scripts/prepare-release-matrix.rb config/services.new-api.json
+)
+
+ruby -rjson -e '
+  data = JSON.parse(STDIN.read)
+  include_items = data.fetch("include")
+  raise "new-api 应只返回一个服务" unless include_items.size == 1
+
+  new_api = include_items.fetch(0)
+
+  raise "new-api 服务名错误" unless new_api.fetch("service") == "new-api"
+  raise "new-api 镜像仓库错误" unless new_api.fetch("image_repository") == "ghcr.io/tianweilong/new-api"
+  raise "new-api Dockerfile 错误" unless new_api.fetch("dockerfile") == "Dockerfile"
+  raise "new-api 平台配置错误" unless new_api.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "new-api 不应需要构建参数" unless new_api.fetch("build_args") == []
+  raise "new-api 镜像标签错误" unless new_api.fetch("tag") == "v2.3.4"
+' <<< "$new_api_output"
+
 override_config=$(mktemp)
 trap 'rm -f "$override_config"' EXIT
 
