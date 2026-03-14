@@ -42,6 +42,8 @@ fi
 grep -q 'has_npm' "$file"
 grep -q 'release-npm:' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
+grep -q 'NODE_VERSION: 24' "$file"
+grep -q 'npm install -g npm@11.5.1' "$file"
 grep -q '打印 Linux Runner 信息' "$file"
 grep -q '打印 macOS Runner 信息' "$file"
 grep -q 'RUNNER_OS=${RUNNER_OS}' "$file"

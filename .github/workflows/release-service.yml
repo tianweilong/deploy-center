@@ -277,8 +277,11 @@ jobs:
       - name: 设置 Node 与 pnpm
         uses: ./source/.github/actions/setup-node
         env:
-          NODE_VERSION: 22
+          NODE_VERSION: 24
           PNPM_VERSION: 10.13.1
+
+      - name: 升级 npm 以满足 Trusted Publishing 要求
+        run: npm install -g npm@11.5.1
 
       - name: 打印 macOS Runner 信息
         run: |
