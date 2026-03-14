@@ -19,6 +19,14 @@ grep -q 'source_tag' "$file"
 grep -q 'SOURCE_TAG' "$file"
 grep -q 'release_targets' "$file"
 grep -q 'npm_package_name' "$file"
+if grep -q 'LEGACY_TARGET_SERVICES' "$file"; then
+  echo '不应再保留 LEGACY_TARGET_SERVICES 兼容变量。' >&2
+  exit 1
+fi
+if grep -q '^      services:$' "$file"; then
+  echo '不应再保留 services 输入。' >&2
+  exit 1
+fi
 grep -q 'has_npm' "$file"
 grep -q 'release-npm:' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"

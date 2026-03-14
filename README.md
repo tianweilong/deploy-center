@@ -66,14 +66,16 @@
 当前 npm 发布路径会在 macOS Runner 上检出源仓库并执行：
 
 - `pnpm i --frozen-lockfile`
-- `make npx-dev-build`
-- `scripts/release/publish-npm-package.sh`
+- `pnpm run build:npx`
+- `npm publish --provenance --access public`（Trusted Publishing）
 
 最终用户通过以下命令启动本地服务：
 
 ```bash
 npx @vino.tian/vibe-kanban
 ```
+
+> 前提：需要先在 npm 后台把 `deploy-center` 仓库配置成 `@vino.tian/vibe-kanban` 的 Trusted Publisher。
 
 ## 开发文档
 

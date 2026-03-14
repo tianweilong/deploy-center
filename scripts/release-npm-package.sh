@@ -23,5 +23,22 @@ if [ "$root_version" != "$expected_version" ] || [ "$npx_version" != "$expected_
 fi
 
 pnpm i --frozen-lockfile
-make npx-dev-build
-SOURCE_TAG="$SOURCE_TAG" bash scripts/release/publish-npm-package.sh
+pnpm run build:npx
+
+cd npx-cli
+rm -f ./*.tgz
+npm pack
+PACKAGE_FILE=$(find . -maxdepth 1 -name '*.tgz' | head -n1)
+
+if [ -z "$PACKAGE_FILE" ] || [ ! -f "$PACKAGE_FILE" ]; then
+  echo '缺少待发布的 tgz 包。' >&2
+  exit 1
+fi
+
+if npm view "${actual_package_name}@${npx_version}" version >/dev/null 2>&1; then
+  echo "${actual_package_name}@${npx_version} 已存在，跳过发布。"
+  exit 0
+fi
+
+echo "通过 Trusted Publishing 发布 ${PACKAGE_FILE} -> ${actual_package_name}@${npx_version}"
+npm publish "$PACKAGE_FILE" --provenance --access public

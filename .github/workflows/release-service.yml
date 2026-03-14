@@ -30,10 +30,6 @@ on:
         description: npm 包名
         required: false
         type: string
-      services:
-        description: 兼容旧入口的逗号分隔服务列表
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -47,7 +43,6 @@ env:
   SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}
   RELEASE_TARGETS: ${{ github.event.client_payload.release_targets || inputs.release_targets }}
   NPM_PACKAGE_NAME: ${{ github.event.client_payload.npm_package_name || inputs.npm_package_name }}
-  LEGACY_TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
   DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
@@ -71,8 +66,8 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${RELEASE_TARGETS}" ] && [ -z "${LEGACY_TARGET_SERVICES}" ]; then
-            echo '缺少发布目标。请提供 release_targets 或 services。' >&2
+          if [ -z "${RELEASE_TARGETS}" ]; then
+            echo '缺少发布目标：release_targets。' >&2
             exit 1
           fi
 
@@ -85,32 +80,30 @@ jobs:
         name: 解析发布目标
         run: |
           set -euo pipefail
-          target_services="${LEGACY_TARGET_SERVICES}"
+          target_services=''
           has_npm=false
 
-          if [ -n "${RELEASE_TARGETS}" ]; then
-            IFS=',' read -r -a targets <<< "${RELEASE_TARGETS}"
-            for raw_target in "${targets[@]}"; do
-              target=$(printf '%s' "${raw_target}" | xargs)
-              case "${target}" in
-                remote)
-                  target_services="${target_services},vibe-kanban-remote"
-                  ;;
-                relay)
-                  target_services="${target_services},vibe-kanban-relay"
-                  ;;
-                npm)
-                  has_npm=true
-                  ;;
-                '')
-                  ;;
-                *)
-                  echo "不支持的发布目标：${target}" >&2
-                  exit 1
-                  ;;
-              esac
-            done
-          fi
+          IFS=',' read -r -a targets <<< "${RELEASE_TARGETS}"
+          for raw_target in "${targets[@]}"; do
+            target=$(printf '%s' "${raw_target}" | xargs)
+            case "${target}" in
+              remote)
+                target_services="${target_services},vibe-kanban-remote"
+                ;;
+              relay)
+                target_services="${target_services},vibe-kanban-relay"
+                ;;
+              npm)
+                has_npm=true
+                ;;
+              '')
+                ;;
+              *)
+                echo "不支持的发布目标：${target}" >&2
+                exit 1
+                ;;
+            esac
+          done
 
           target_services=$(printf '%s' "${target_services}" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd, -)
 
@@ -222,6 +215,7 @@ jobs:
   release-npm:
     needs: prepare
     if: ${{ needs.prepare.outputs.has_npm == 'true' }}
+    # 当前优先需要产出 macOS 包；Linux ARM64 服务器无法直接构建 macOS 产物。
     runs-on: macos-15-xlarge
     steps:
       - uses: actions/checkout@v6
@@ -246,7 +240,10 @@ jobs:
         with:
           toolchain: nightly-2025-12-04
 
-      - name: 构建并发布 npm 包
+      - name: 升级 npm 以支持 Trusted Publishing
+        run: npm install -g npm@latest
+
+      - name: 构建并通过 Trusted Publishing 发布 npm 包
         env:
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
           NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
