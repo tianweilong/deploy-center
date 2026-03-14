@@ -22,6 +22,8 @@ grep -q 'source_tag' "$file"
 grep -q 'SOURCE_TAG' "$file"
 grep -q 'release_targets' "$file"
 grep -q 'npm_package_name' "$file"
+grep -q 'npm_package_dir' "$file"
+grep -q 'npm_version_strategy' "$file"
 if grep -q 'LEGACY_TARGET_SERVICES' "$file"; then
   echo '不应再保留 LEGACY_TARGET_SERVICES 兼容变量。' >&2
   exit 1

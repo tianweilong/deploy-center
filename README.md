@@ -40,6 +40,8 @@
 - `source_tag`
 - `release_targets`
 - `npm_package_name`
+- `npm_package_dir`
+- `npm_version_strategy`
 
 标准正式发布的 `release_targets` 为：
 
@@ -47,9 +49,17 @@
 - `relay`
 - `npm`
 
-当 payload 中包含 `npm` 时，`npm_package_name` 必须提供，当前固定为：
+当 payload 中包含 `npm` 时，至少需要提供：
+
+- `npm_package_name`
+- `npm_package_dir`
+- `npm_version_strategy`
+
+对于当前 `vibe-kanban`，这些值分别是：
 
 - `@vino.tian/vibe-kanban`
+- `npx-cli`
+- `base_patch_offset`
 
 ## npm 版本映射规则
 
@@ -63,7 +73,8 @@
 这意味着：
 
 - 源码仓库根版本可以继续表示上游基线版本
-- `deploy-center` 会在 CI 工作目录里临时改写 `npx-cli/package.json` 的版本
+- `deploy-center` 不需要知道源仓库具体目录结构，而是通过 `npm_package_dir` 和 `npm_version_strategy` 执行发布
+- 对于需要映射规则的仓库，`deploy-center` 会在 CI 工作目录里临时改写目标 package 的版本
 - 该改动不会提交回源码仓库
 
 ## 镜像构建平台

@@ -12,7 +12,10 @@ if grep -q 'make npx-dev-build' "$script"; then
   exit 1
 fi
 grep -q 'NPM_PACKAGE_NAME' "$script"
+grep -q 'NPM_PACKAGE_DIR' "$script"
+grep -q 'NPM_VERSION_STRATEGY' "$script"
 grep -q 'root_version' "$script"
+grep -q 'case "${NPM_VERSION_STRATEGY}"' "$script"
 grep -q 'mapped_base_patch' "$script"
 grep -q 'release_seq' "$script"
 grep -q 'PUBLISH_VERSION' "$script"
@@ -25,4 +28,7 @@ if grep -q -- '--provenance' "$script"; then
   exit 1
 fi
 grep -q 'package.json' "$script"
-grep -q 'npx-cli/package.json' "$script"
+if grep -q './npx-cli/package.json' "$script"; then
+  echo '发布脚本不应写死 npx-cli/package.json 路径。' >&2
+  exit 1
+fi
