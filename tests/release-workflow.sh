@@ -45,6 +45,10 @@ fi
 grep -q 'has_npm' "$file"
 grep -q 'release-npm:' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
+if ! grep -q 'NODE_OPTIONS: --max-old-space-size=6144' "$file"; then
+  echo 'npm 发布步骤需要显式设置 NODE_OPTIONS 以抬高 Node 堆上限。' >&2
+  exit 1
+fi
 if grep -q 'NODE_AUTH_TOKEN' "$file"; then
   echo 'Trusted Publishing 的 workflow 不应再显式注入 NODE_AUTH_TOKEN。' >&2
   exit 1
