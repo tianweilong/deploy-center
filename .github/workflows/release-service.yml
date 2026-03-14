@@ -279,6 +279,7 @@ jobs:
 
       - name: 构建并通过 Trusted Publishing 发布 npm 包
         env:
+          NODE_OPTIONS: --max-old-space-size=6144
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
           NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
           NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
