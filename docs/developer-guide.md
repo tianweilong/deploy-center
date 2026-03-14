@@ -6,6 +6,7 @@
 
 - 接收应用仓库触发的发布事件，或由维护者手动触发发布工作流。
 - 根据服务配置生成构建矩阵，从源仓库检出指定提交，构建并推送镜像到 GHCR。
+- 在需要时检出应用源仓库，执行 `make npx-dev-build` 并发布 `@vino.tian/vibe-kanban` 到 npm。
 - 将目标服务的期望部署状态写回仓库中的 `environments/` 目录，并提交变更。
 - 预留未来的拉模式部署代理协议，使目标机器可以从本仓库拉取期望状态并执行部署。
 
@@ -14,7 +15,7 @@
 - `vibe-kanban-remote`
 - `vibe-kanban-relay`
 
-如果把整个链路简化成一句话：**应用仓库负责产生命令，这个仓库负责生成镜像与记录服务期望状态。**
+如果把整个链路简化成一句话：**应用仓库负责产生命令，这个仓库负责统一执行镜像发布、npm 发布与服务状态回写。**
 
 ## 2. 建议阅读顺序
 
@@ -37,7 +38,7 @@
 ### CI / 发布工作流
 
 - `.github/workflows/validate-deployment-config.yml`：在 `push`、`pull_request`、`workflow_dispatch` 时校验 YAML 可解析、Shell 脚本语法有效。
-- `.github/workflows/release-service.yml`：核心发布工作流，负责编排构建矩阵、镜像构建推送和部署状态回写。
+- `.github/workflows/release-service.yml`：核心发布工作流，负责编排服务镜像构建、npm 打包发布和部署状态回写。
 
 ### 配置与服务注册
 
@@ -98,15 +99,18 @@
 - `SOURCE_REF`
 - `SOURCE_SHA`
 - `SOURCE_TAG`
-- `TARGET_SERVICES`
+- `RELEASE_TARGETS`
+- `NPM_PACKAGE_NAME`
+- `LEGACY_TARGET_SERVICES`（仅兼容旧入口）
 
 ### 4.2 prepare 阶段
 
 `prepare` 任务运行在 GitHub 托管的 `ubuntu-latest` Runner 上，会做三件事：
 
 1. 校验发布输入是否完整。
-2. 读取仓库变量中的构建参数。
-3. 调用 `scripts/prepare-release-matrix.rb` 生成服务构建矩阵。
+2. 将 `release_targets` 解析成服务镜像目标与 npm 目标。
+3. 读取仓库变量中的构建参数。
+4. 调用 `scripts/prepare-release-matrix.rb` 为服务镜像生成构建矩阵。
 
 目前可以确定的仓库变量是：
 
@@ -114,7 +118,7 @@
 
 之所以需要它，是因为 `vibe-kanban-remote` 的镜像构建依赖 build arg `VITE_RELAY_API_BASE_URL`。
 
-### 4.3 build 阶段
+### 4.3 build 阶段（服务镜像）
 
 `build` 任务运行在带 `self-hosted`、`Linux`、`ARM64` 标签的自建 Runner 上，并行处理矩阵中的服务项，主要步骤如下：
 
@@ -129,7 +133,21 @@
 - 始终推送 `${SOURCE_TAG}` 对应的镜像 tag。
 - 仅当 `SOURCE_TAG` 是仓库中最新的正式语义化版本标签时，额外推送 `latest`。
 
-### 4.4 update-state 阶段
+### 4.4 release-npm 阶段
+
+`release-npm` 任务运行在 `macos-15-xlarge` Runner 上，只在 `release_targets` 包含 `npm` 时执行。该任务会：
+
+1. 检出应用源仓库到 `source/`。
+2. 设置 Node.js、pnpm 与 Rust 工具链。
+3. 校验 `npx-cli/package.json` 中的包名与请求中的 `npm_package_name` 一致。
+4. 校验根目录与 `npx-cli` 的版本都等于 `SOURCE_TAG` 去掉前缀 `v` 后的值。
+5. 执行 `pnpm i --frozen-lockfile`。
+6. 执行 `make npx-dev-build` 生成可直接通过 `npx @vino.tian/vibe-kanban` 启动的 tgz 包。
+7. 调用源仓库 `scripts/release/publish-npm-package.sh`，若版本已存在则跳过发布。
+
+### 4.5 update-state 阶段
+
+### 4.5 update-state 阶段
 
 `update-state` 任务继续运行在 GitHub 托管的 `ubuntu-latest` Runner 上。
 
@@ -296,6 +314,7 @@ SOURCE_TAG='v1.2.3' \
 ### 8.2 GitHub Token 权限
 
 - `GITHUB_TOKEN` 需要具备 `packages: write`
+- `GITHUB_TOKEN` 需要具备 `id-token: write`，用于 npm provenance 发布
 
 ### 8.3 仓库变量
 
@@ -306,7 +325,12 @@ SOURCE_TAG='v1.2.3' \
 - 需要 GHCR 读取权限：PAT classic with `read:packages`
 - 需要已执行 `docker login ghcr.io`
 
-### 8.5 应用仓库触发密钥
+### 8.5 npm 发布目标
+
+- 当前 npm 包名固定为 `@vino.tian/vibe-kanban`
+- 统一发布 payload 中若包含 `npm`，必须同时提供 `npm_package_name`
+
+### 8.6 应用仓库触发密钥
 
 应用仓库只需要保留一个触发 `deploy-center` 的窄权限 secret：
 
