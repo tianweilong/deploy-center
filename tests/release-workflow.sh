@@ -45,6 +45,22 @@ fi
 grep -q 'has_npm' "$file"
 grep -q 'release-npm:' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
+grep -q 'NODE_VERSION: 24' "$file"
+grep -q 'npm install -g npm@11.5.1' "$file"
+grep -q '打印 Linux Runner 信息' "$file"
+grep -q '打印 macOS Runner 信息' "$file"
+grep -q 'RUNNER_OS=${RUNNER_OS}' "$file"
+grep -q 'RUNNER_ARCH=${RUNNER_ARCH}' "$file"
+grep -q 'RUNNER_NAME=${RUNNER_NAME}' "$file"
+grep -q 'lscpu' "$file"
+grep -q 'free -h' "$file"
+grep -q 'docker buildx version' "$file"
+grep -q 'sw_vers' "$file"
+grep -q 'machdep.cpu.brand_string' "$file"
+grep -q 'hw.ncpu' "$file"
+grep -q 'hw.memsize' "$file"
+grep -q 'node --version' "$file"
+grep -q 'npm --version' "$file"
 if ! grep -q 'NODE_OPTIONS: --max-old-space-size=6144' "$file"; then
   echo 'npm 发布步骤需要显式设置 NODE_OPTIONS 以抬高 Node 堆上限。' >&2
   exit 1

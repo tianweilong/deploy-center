@@ -7,6 +7,8 @@ script='scripts/release-npm-package.sh'
 
 grep -q 'npm_package_name' "$workflow"
 grep -q 'release-npm:' "$workflow"
+grep -q 'NODE_VERSION: 24' "$workflow"
+grep -q 'npm install -g npm@11.5.1' "$workflow"
 if grep -q 'make npx-dev-build' "$script"; then
   echo '不应依赖 make npx-dev-build。' >&2
   exit 1
