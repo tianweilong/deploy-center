@@ -4,6 +4,7 @@ set -euo pipefail
 SOURCE_DIR="${1:-source}"
 : "${SOURCE_TAG:?缺少 SOURCE_TAG}"
 : "${NPM_PACKAGE_NAME:?缺少 NPM_PACKAGE_NAME}"
+: "${NODE_AUTH_TOKEN:?缺少 NODE_AUTH_TOKEN}"
 
 cd "$SOURCE_DIR"
 
@@ -40,5 +41,5 @@ if npm view "${actual_package_name}@${npx_version}" version >/dev/null 2>&1; the
   exit 0
 fi
 
-echo "通过 Trusted Publishing 发布 ${PACKAGE_FILE} -> ${actual_package_name}@${npx_version}"
-npm publish "$PACKAGE_FILE" --provenance --access public
+echo "通过 NPM_TOKEN 发布 ${PACKAGE_FILE} -> ${actual_package_name}@${npx_version}"
+npm publish "$PACKAGE_FILE" --access public

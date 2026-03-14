@@ -134,7 +134,7 @@
 
 ### 4.4 release-npm 阶段
 
-`release-npm` 任务运行在 `macos-15-xlarge` Runner 上，只在 `release_targets` 包含 `npm` 时执行。之所以不切到 Linux ARM64 服务器，是因为当前优先要产出 macOS 包，而 Linux ARM64 无法直接稳定构建 macOS 产物。该任务会：
+`release-npm` 任务运行在带 `self-hosted`、`macOS`、`ARM64` 标签的自托管 Runner 上，只在 `release_targets` 包含 `npm` 时执行。之所以不切到 Linux ARM64 服务器，是因为当前优先要产出 macOS 包，而 Linux ARM64 无法直接稳定构建 macOS 产物。该任务会：
 
 1. 检出应用源仓库到 `source/`。
 2. 设置 Node.js、pnpm 与 Rust 工具链。
@@ -142,7 +142,7 @@
 4. 校验根目录与 `npx-cli` 的版本都等于 `SOURCE_TAG` 去掉前缀 `v` 后的值。
 5. 执行 `pnpm i --frozen-lockfile`。
 6. 执行 `pnpm run build:npx` 生成可直接通过 `npx @vino.tian/vibe-kanban` 启动的 tgz 包。
-7. 使用 Trusted Publishing 执行 `npm publish --provenance --access public`；若版本已存在则跳过发布。
+7. 使用 `NODE_AUTH_TOKEN` 执行 `npm publish --access public`；若版本已存在则跳过发布。
 
 ### 4.5 update-state 阶段
 
@@ -311,7 +311,6 @@ SOURCE_TAG='v1.2.3' \
 ### 8.2 GitHub Token 权限
 
 - `GITHUB_TOKEN` 需要具备 `packages: write`
-- `GITHUB_TOKEN` 需要具备 `id-token: write`，用于 npm provenance 发布
 
 ### 8.3 仓库变量
 
@@ -326,7 +325,7 @@ SOURCE_TAG='v1.2.3' \
 
 - 当前 npm 包名固定为 `@vino.tian/vibe-kanban`
 - 统一发布 payload 中若包含 `npm`，必须同时提供 `npm_package_name`
-- 需要在 npm 后台把 `deploy-center` 仓库配置成该包的 Trusted Publisher
+- 需要在 `deploy-center` 仓库配置 `NPM_TOKEN`，且该 token 必须是对目标包具备写权限的 granular access token
 
 ### 8.6 应用仓库触发密钥
 

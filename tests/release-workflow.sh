@@ -5,9 +5,12 @@ cd "$(dirname "$0")/.."
 file='.github/workflows/release-service.yml'
 
 grep -q 'packages: write' "$file"
-grep -q 'id-token: write' "$file"
+if grep -q 'id-token: write' "$file"; then
+  echo '切换到 NPM_TOKEN 后不应再要求 id-token: write。' >&2
+  exit 1
+fi
 grep -q 'runs-on: \[self-hosted, Linux, ARM64\]' "$file"
-grep -q 'runs-on: macos-15-xlarge' "$file"
+grep -q 'runs-on: \[self-hosted, macOS, ARM64\]' "$file"
 test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 2
 grep -q 'docker/setup-qemu-action@v3' "$file"
 grep -q 'docker/build-push-action@v6' "$file"
@@ -30,6 +33,11 @@ fi
 grep -q 'has_npm' "$file"
 grep -q 'release-npm:' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
+grep -q 'NODE_AUTH_TOKEN' "$file"
+if grep -q -- '--provenance' "$file"; then
+  echo '切换到 NPM_TOKEN 后 workflow 不应再依赖 provenance 发布。' >&2
+  exit 1
+fi
 grep -q 'git tag --list' "$file"
 grep -q 'sort -V' "$file"
 grep -q ':latest' "$file"

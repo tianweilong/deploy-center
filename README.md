@@ -16,7 +16,6 @@
 必需的工作流权限：
 
 - `GITHUB_TOKEN` 需要具备 `packages: write`
-- `GITHUB_TOKEN` 需要具备 `id-token: write`，用于 npm provenance 发布
 
 必需的仓库变量：
 
@@ -63,11 +62,11 @@
 
 ## npm 打包说明
 
-当前 npm 发布路径会在 macOS Runner 上检出源仓库并执行：
+当前 npm 发布路径会在自托管 ARM64 macOS Runner 上检出源仓库并执行：
 
 - `pnpm i --frozen-lockfile`
 - `pnpm run build:npx`
-- `npm publish --provenance --access public`（Trusted Publishing）
+- `NODE_AUTH_TOKEN=${NPM_TOKEN} npm publish --access public`
 
 最终用户通过以下命令启动本地服务：
 
@@ -75,7 +74,7 @@
 npx @vino.tian/vibe-kanban
 ```
 
-> 前提：需要先在 npm 后台把 `deploy-center` 仓库配置成 `@vino.tian/vibe-kanban` 的 Trusted Publisher。
+> 前提：需要在 `deploy-center` 仓库中配置 `NPM_TOKEN`，且该 token 必须是对 `@vino.tian/vibe-kanban` 具备写权限的 granular access token。
 
 ## 开发文档
 
