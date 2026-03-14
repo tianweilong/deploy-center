@@ -22,9 +22,13 @@ on:
         description: 源标签
         required: true
         type: string
-      services:
-        description: 逗号分隔的服务列表
-        required: true
+      release_targets:
+        description: 逗号分隔的发布目标
+        required: false
+        type: string
+      npm_package_name:
+        description: npm 包名
+        required: false
         type: string
 
 permissions:
@@ -36,7 +40,8 @@ env:
   SOURCE_REF: ${{ github.event.client_payload.source_ref || inputs.source_ref }}
   SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
   SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}
-  TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
+  RELEASE_TARGETS: ${{ github.event.client_payload.release_targets || inputs.release_targets }}
+  NPM_PACKAGE_NAME: ${{ github.event.client_payload.npm_package_name || inputs.npm_package_name }}
   DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
@@ -46,22 +51,79 @@ jobs:
       VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      has_services: ${{ steps.targets.outputs.has_services }}
+      has_npm: ${{ steps.targets.outputs.has_npm }}
+      target_services: ${{ steps.targets.outputs.target_services }}
     steps:
       - uses: actions/checkout@v6
 
       - name: 校验发布输入
         run: |
           set -euo pipefail
-          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${SOURCE_TAG}" ] || [ -z "${TARGET_SERVICES}" ]; then
+          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${SOURCE_TAG}" ]; then
             echo '缺少必填发布输入。' >&2
             exit 1
           fi
+
+          if [ -z "${RELEASE_TARGETS}" ]; then
+            echo '缺少发布目标：release_targets。' >&2
+            exit 1
+          fi
+
+          if printf '%s' "${RELEASE_TARGETS}" | grep -Eq '(^|,)[[:space:]]*npm([[:space:]]*,|$)' && [ -z "${NPM_PACKAGE_NAME}" ]; then
+            echo '当 release_targets 包含 npm 时必须提供 npm_package_name。' >&2
+            exit 1
+          fi
+
+      - id: targets
+        name: 解析发布目标
+        run: |
+          set -euo pipefail
+          target_services=''
+          has_npm=false
+
+          IFS=',' read -r -a targets <<< "${RELEASE_TARGETS}"
+          for raw_target in "${targets[@]}"; do
+            target=$(printf '%s' "${raw_target}" | xargs)
+            case "${target}" in
+              remote)
+                target_services="${target_services},vibe-kanban-remote"
+                ;;
+              relay)
+                target_services="${target_services},vibe-kanban-relay"
+                ;;
+              npm)
+                has_npm=true
+                ;;
+              '')
+                ;;
+              *)
+                echo "不支持的发布目标：${target}" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          target_services=$(printf '%s' "${target_services}" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd, -)
+
+          if [ -n "${target_services}" ]; then
+            echo 'has_services=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has_services=false' >> "$GITHUB_OUTPUT"
+          fi
+          echo "has_npm=${has_npm}" >> "$GITHUB_OUTPUT"
+          echo "target_services=${target_services}" >> "$GITHUB_OUTPUT"
 
       - id: matrix
         name: 构建服务矩阵
         run: |
           set -euo pipefail
-          matrix=$(TARGET_SERVICES="${TARGET_SERVICES}" \
+          if [ "${{ steps.targets.outputs.has_services }}" != 'true' ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
             SOURCE_TAG="${SOURCE_TAG}" \
             VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
             ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json)
@@ -73,6 +135,7 @@ jobs:
 
   build:
     needs: prepare
+    if: ${{ needs.prepare.outputs.has_services == 'true' }}
     runs-on: [self-hosted, Linux, ARM64]
     strategy:
       fail-fast: false
@@ -136,7 +199,7 @@ jobs:
     needs:
       - prepare
       - build
-    if: ${{ needs.build.result == 'success' }}
+    if: ${{ needs.prepare.outputs.has_services == 'true' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -147,3 +210,38 @@ jobs:
         run: |
           set -euo pipefail
           ./scripts/commit-deployment-state-with-retry.sh
+
+  release-npm:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.has_npm == 'true' }}
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 设置 Node 与 pnpm
+        uses: ./source/.github/actions/setup-node
+        env:
+          NODE_VERSION: 22
+          PNPM_VERSION: 10.13.1
+
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2025-12-04
+
+      - name: 构建并通过 NPM_TOKEN 发布 npm 包
+        env:
+          SOURCE_TAG: ${{ env.SOURCE_TAG }}
+          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          ./scripts/release-npm-package.sh source
