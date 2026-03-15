@@ -46,6 +46,14 @@ on:
         description: patch 映射因子
         required: false
         type: string
+      npm_release_package_key:
+        description: npm Release 包标识
+        required: false
+        type: string
+      npm_release_repository:
+        description: npm Release 公开仓库
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -63,6 +71,8 @@ env:
   NPM_VERSION_STRATEGY: ${{ github.event.client_payload.npm_version_strategy || inputs.npm_version_strategy }}
   NPM_BASE_VERSION_FILE: ${{ github.event.client_payload.npm_base_version_file || inputs.npm_base_version_file }}
   NPM_VERSION_PATCH_FACTOR: ${{ github.event.client_payload.npm_version_patch_factor || inputs.npm_version_patch_factor }}
+  NPM_RELEASE_PACKAGE_KEY: ${{ github.event.client_payload.npm_release_package_key || inputs.npm_release_package_key }}
+  NPM_RELEASE_REPOSITORY: ${{ github.event.client_payload.npm_release_repository || inputs.npm_release_repository }}
   DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
@@ -94,8 +104,8 @@ jobs:
           fi
 
           if printf '%s' "${RELEASE_TARGETS}" | grep -Eq '(^|,)[[:space:]]*npm([[:space:]]*,|$)'; then
-            if [ -z "${NPM_PACKAGE_NAME}" ] || [ -z "${NPM_PACKAGE_DIR}" ] || [ -z "${NPM_VERSION_STRATEGY}" ]; then
-              echo '当 release_targets 包含 npm 时必须提供 npm_package_name、npm_package_dir 和 npm_version_strategy。' >&2
+            if [ -z "${NPM_PACKAGE_NAME}" ] || [ -z "${NPM_PACKAGE_DIR}" ] || [ -z "${NPM_VERSION_STRATEGY}" ] || [ -z "${NPM_RELEASE_PACKAGE_KEY}" ] || [ -z "${NPM_RELEASE_REPOSITORY}" ]; then
+              echo '当 release_targets 包含 npm 时必须提供 npm_package_name、npm_package_dir、npm_version_strategy、npm_release_package_key 和 npm_release_repository。' >&2
               exit 1
             fi
 
@@ -159,7 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ steps.targets.outputs.has_npm }}" = 'true' ]; then
-            npm_matrix='{"include":[{"runner":"ubuntu-latest","target_os":"linux","target_arch":"x64"},{"runner":"windows-latest","target_os":"win32","target_arch":"x64"}]}'
+            npm_matrix='{"include":[{"runner":"ubuntu-latest","target":"linux-x64","target_os":"linux","target_arch":"x64","archive_ext":"tar.gz"},{"runner":"windows-latest","target":"win32-x64","target_os":"win32","target_arch":"x64","archive_ext":"zip"},{"runner":"macos-15","target":"darwin-arm64","target_os":"darwin","target_arch":"arm64","archive_ext":"tar.gz"}]}'
           else
             npm_matrix='{"include":[]}'
           fi
@@ -277,7 +287,7 @@ jobs:
           set -euo pipefail
           ./scripts/commit-deployment-state-with-retry.sh
 
-  release-npm-build:
+  release-npm-assets:
     needs: prepare
     if: ${{ needs.prepare.outputs.has_npm == 'true' }}
     runs-on: ${{ matrix.runner }}
@@ -347,6 +357,29 @@ jobs:
           Write-Host '--- npm --version ---'
           npm --version
 
+      - name: 打印 macOS Runner 信息
+        if: ${{ matrix.target_os == 'darwin' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+          echo "RUNNER_NAME=${RUNNER_NAME}"
+          echo '--- sw_vers ---'
+          sw_vers
+          echo '--- CPU ---'
+          sysctl -n machdep.cpu.brand_string
+          echo '--- CPU 核心数 ---'
+          sysctl -n hw.ncpu
+          echo '--- 内存字节数 ---'
+          sysctl -n hw.memsize
+          echo '--- df -h ---'
+          df -h
+          echo '--- node --version ---'
+          node --version
+          echo '--- npm --version ---'
+          npm --version
+
       - name: 安装 Rust 工具链
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -359,28 +392,84 @@ jobs:
           BUILD_ONLY: true
           TARGET_OS: ${{ matrix.target_os }}
           TARGET_ARCH: ${{ matrix.target_arch }}
-          BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target_os }}-${{ matrix.target_arch }}
+          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+          BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
           NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
           NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
+          NPM_RELEASE_PACKAGE_KEY: ${{ env.NPM_RELEASE_PACKAGE_KEY }}
+          NPM_RELEASE_REPOSITORY: ${{ env.NPM_RELEASE_REPOSITORY }}
         run: |
           ./scripts/release-npm-package.sh source
 
       - name: 上传 npm 平台产物
         uses: actions/upload-artifact@v4
         with:
-          name: npm-package-${{ matrix.target_os }}-${{ matrix.target_arch }}
-          path: npm-artifacts/${{ matrix.target_os }}-${{ matrix.target_arch }}
+          name: npm-package-${{ matrix.target }}
+          path: npm-artifacts/${{ matrix.target }}
           if-no-files-found: error
 
-  release-npm-publish:
+  release-github-release:
     needs:
       - prepare
-      - release-npm-build
-    if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-npm-build.result == 'success' }}
+      - release-npm-assets
+    if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-npm-assets.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 下载 npm 平台产物
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          pattern: npm-package-*
+
+      - name: 生成 GitHub Release tag
+        id: release-tag
+        run: |
+          set -euo pipefail
+          echo "tag=${NPM_RELEASE_PACKAGE_KEY}-${SOURCE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: 创建 GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.release-tag.outputs.tag }}" \
+            --repo "${NPM_RELEASE_REPOSITORY}" \
+            --title "${{ steps.release-tag.outputs.tag }}" \
+            --notes "npm release assets for ${NPM_PACKAGE_NAME}@${SOURCE_TAG}" \
+            --verify-tag || true
+
+      - name: 上传 GitHub Release 资产
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          find release-artifacts -type f | sort > /tmp/release-assets.txt
+          while IFS= read -r asset; do
+            gh release upload "${{ steps.release-tag.outputs.tag }}" "$asset" \
+              --repo "${NPM_RELEASE_REPOSITORY}" \
+              --clobber
+          done < /tmp/release-assets.txt
+
+  release-npm:
+    needs:
+      - prepare
+      - release-github-release
+    if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-github-release.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -403,22 +492,16 @@ jobs:
       - name: 升级 npm 以满足 Trusted Publishing 要求
         run: npm install -g npm@11.5.1
 
-      - name: 下载 npm 平台产物
-        uses: actions/download-artifact@v4
-        with:
-          path: release-artifacts
-          pattern: npm-package-*
-
-      - name: 汇总产物并通过 Trusted Publishing 发布 npm 包
+      - name: 通过 Trusted Publishing 发布轻量 npm 包
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-          PUBLISH_ONLY: true
-          ARTIFACTS_DIR: release-artifacts
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
           NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
           NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
+          NPM_RELEASE_PACKAGE_KEY: ${{ env.NPM_RELEASE_PACKAGE_KEY }}
+          NPM_RELEASE_REPOSITORY: ${{ env.NPM_RELEASE_REPOSITORY }}
         run: |
           ./scripts/release-npm-package.sh source

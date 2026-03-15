@@ -6,9 +6,11 @@ workflow='.github/workflows/release-service.yml'
 script='scripts/release-npm-package.sh'
 
 grep -q 'npm_package_name' "$workflow"
-grep -q 'release-npm-build:' "$workflow"
-grep -q 'release-npm-publish:' "$workflow"
+grep -q 'release-npm-assets:' "$workflow"
+grep -q 'release-github-release:' "$workflow"
+grep -q 'release-npm:' "$workflow"
 grep -q 'windows-latest' "$workflow"
+grep -q 'darwin-arm64' "$workflow"
 grep -q 'NODE_VERSION: 24' "$workflow"
 grep -q 'npm install -g npm@11.5.1' "$workflow"
 if grep -q 'make npx-dev-build' "$script"; then
@@ -24,12 +26,14 @@ grep -q 'mapped_base_patch' "$script"
 grep -q 'release_seq' "$script"
 grep -q 'PUBLISH_VERSION' "$script"
 grep -q 'BUILD_ONLY' "$script"
-grep -q 'PUBLISH_ONLY' "$script"
+grep -q 'NPM_RELEASE_PACKAGE_KEY' "$script"
+grep -q 'NPM_RELEASE_REPOSITORY' "$script"
 grep -q 'TARGET_OS' "$script"
 grep -q 'TARGET_ARCH' "$script"
+grep -q 'checksums.txt' "$script"
 grep -q 'pnpm run build:npx' "$script"
 grep -q 'id-token: write' "$workflow"
-grep -q 'npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version' "$script"
+grep -q 'gh release create' "$workflow"
 grep -q 'npm publish' "$script"
 if grep -q 'NODE_AUTH_TOKEN' "$script"; then
   echo 'Trusted Publishing 发布脚本不应再依赖 NODE_AUTH_TOKEN。' >&2

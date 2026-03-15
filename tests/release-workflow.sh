@@ -17,7 +17,7 @@ if grep -q '\[self-hosted, macOS, ARM64\]' "$file"; then
   echo 'npm 发布不应再使用自托管 macOS runner。' >&2
   exit 1
 fi
-test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 4
+test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 5
 grep -q 'docker/setup-qemu-action@v3' "$file"
 grep -q 'docker/build-push-action@v6' "$file"
 grep -q 'registry: ghcr.io' "$file"
@@ -33,6 +33,8 @@ grep -q '缺少服务构建配置文件' "$file"
 grep -q 'npm_package_name' "$file"
 grep -q 'npm_package_dir' "$file"
 grep -q 'npm_version_strategy' "$file"
+grep -q 'npm_release_package_key' "$file"
+grep -q 'npm_release_repository' "$file"
 if grep -q 'LEGACY_TARGET_SERVICES' "$file"; then
   echo '不应再保留 LEGACY_TARGET_SERVICES 兼容变量。' >&2
   exit 1
@@ -43,18 +45,22 @@ if grep -q '^      services:$' "$file"; then
 fi
 grep -q 'has_npm' "$file"
 grep -q 'npm_matrix' "$file"
-grep -q 'release-npm-build:' "$file"
-grep -q 'release-npm-publish:' "$file"
+grep -q 'release-npm-assets:' "$file"
+grep -q 'release-github-release:' "$file"
+grep -q 'release-npm:' "$file"
 grep -q 'windows-latest' "$file"
+grep -q 'darwin-arm64' "$file"
 grep -q 'upload-artifact' "$file"
 grep -q 'download-artifact' "$file"
 grep -q 'BUILD_ONLY: true' "$file"
-grep -q 'PUBLISH_ONLY: true' "$file"
+grep -q 'gh release create' "$file"
+grep -q 'gh release upload' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'NODE_VERSION: 24' "$file"
 grep -q 'npm install -g npm@11.5.1' "$file"
 grep -q '打印 Linux Runner 信息' "$file"
 grep -q '打印 Windows Runner 信息' "$file"
+grep -q '打印 macOS Runner 信息' "$file"
 grep -q 'RUNNER_OS=${RUNNER_OS}' "$file"
 grep -q 'RUNNER_ARCH=${RUNNER_ARCH}' "$file"
 grep -q 'RUNNER_NAME=${RUNNER_NAME}' "$file"
@@ -65,6 +71,10 @@ grep -q 'Get-ComputerInfo' "$file"
 grep -q 'Get-CimInstance Win32_OperatingSystem' "$file"
 grep -q 'Get-CimInstance Win32_Processor' "$file"
 grep -q 'Get-PSDrive -PSProvider FileSystem' "$file"
+grep -q 'sw_vers' "$file"
+grep -q 'machdep.cpu.brand_string' "$file"
+grep -q 'hw.ncpu' "$file"
+grep -q 'hw.memsize' "$file"
 grep -q 'node --version' "$file"
 grep -q 'npm --version' "$file"
 if ! grep -q 'NODE_OPTIONS: --max-old-space-size=6144' "$file"; then
@@ -79,9 +89,7 @@ if grep -q -- '--provenance' "$file"; then
   echo 'workflow 不应手工传递 --provenance，交给 npm 自动处理。' >&2
   exit 1
 fi
-grep -q 'git tag --list' "$file"
-grep -q 'sort -V' "$file"
-grep -q ':latest' "$file"
+grep -q 'NPM_RELEASE_PACKAGE_KEY' "$file"
 grep -q './scripts/commit-deployment-state-with-retry.sh' "$file"
 ! grep -q '^          git push$' "$file"
 ! grep -q 'TENCENT_REGISTRY' "$file"
