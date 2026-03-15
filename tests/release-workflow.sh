@@ -33,8 +33,14 @@ grep -q '缺少服务构建配置文件' "$file"
 grep -q 'npm_package_name' "$file"
 grep -q 'npm_package_dir' "$file"
 grep -q 'npm_version_strategy' "$file"
-grep -q 'npm_release_package_key' "$file"
-grep -q 'npm_release_repository' "$file"
+if grep -q 'npm_release_package_key' "$file"; then
+  echo 'workflow 不应再要求显式传入 npm_release_package_key。' >&2
+  exit 1
+fi
+if grep -q 'npm_release_repository' "$file"; then
+  echo 'workflow 不应再要求显式传入 npm_release_repository。' >&2
+  exit 1
+fi
 if grep -q 'LEGACY_TARGET_SERVICES' "$file"; then
   echo '不应再保留 LEGACY_TARGET_SERVICES 兼容变量。' >&2
   exit 1
@@ -55,6 +61,7 @@ grep -q 'download-artifact' "$file"
 grep -q 'BUILD_ONLY: true' "$file"
 grep -q 'gh release create' "$file"
 grep -q 'gh release upload' "$file"
+grep -q 'github.repository' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'NODE_VERSION: 24' "$file"
 grep -q 'npm install -g npm@11.5.1' "$file"
@@ -89,7 +96,6 @@ if grep -q -- '--provenance' "$file"; then
   echo 'workflow 不应手工传递 --provenance，交给 npm 自动处理。' >&2
   exit 1
 fi
-grep -q 'NPM_RELEASE_PACKAGE_KEY' "$file"
 grep -q './scripts/commit-deployment-state-with-retry.sh' "$file"
 ! grep -q '^          git push$' "$file"
 ! grep -q 'TENCENT_REGISTRY' "$file"

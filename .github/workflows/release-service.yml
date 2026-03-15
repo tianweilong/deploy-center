@@ -46,14 +46,6 @@ on:
         description: patch 映射因子
         required: false
         type: string
-      npm_release_package_key:
-        description: npm Release 包标识
-        required: false
-        type: string
-      npm_release_repository:
-        description: npm Release 公开仓库
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -71,8 +63,6 @@ env:
   NPM_VERSION_STRATEGY: ${{ github.event.client_payload.npm_version_strategy || inputs.npm_version_strategy }}
   NPM_BASE_VERSION_FILE: ${{ github.event.client_payload.npm_base_version_file || inputs.npm_base_version_file }}
   NPM_VERSION_PATCH_FACTOR: ${{ github.event.client_payload.npm_version_patch_factor || inputs.npm_version_patch_factor }}
-  NPM_RELEASE_PACKAGE_KEY: ${{ github.event.client_payload.npm_release_package_key || inputs.npm_release_package_key }}
-  NPM_RELEASE_REPOSITORY: ${{ github.event.client_payload.npm_release_repository || inputs.npm_release_repository }}
   DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
@@ -104,8 +94,8 @@ jobs:
           fi
 
           if printf '%s' "${RELEASE_TARGETS}" | grep -Eq '(^|,)[[:space:]]*npm([[:space:]]*,|$)'; then
-            if [ -z "${NPM_PACKAGE_NAME}" ] || [ -z "${NPM_PACKAGE_DIR}" ] || [ -z "${NPM_VERSION_STRATEGY}" ] || [ -z "${NPM_RELEASE_PACKAGE_KEY}" ] || [ -z "${NPM_RELEASE_REPOSITORY}" ]; then
-              echo '当 release_targets 包含 npm 时必须提供 npm_package_name、npm_package_dir、npm_version_strategy、npm_release_package_key 和 npm_release_repository。' >&2
+            if [ -z "${NPM_PACKAGE_NAME}" ] || [ -z "${NPM_PACKAGE_DIR}" ] || [ -z "${NPM_VERSION_STRATEGY}" ]; then
+              echo '当 release_targets 包含 npm 时必须提供 npm_package_name、npm_package_dir 和 npm_version_strategy。' >&2
               exit 1
             fi
 
@@ -400,8 +390,6 @@ jobs:
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-          NPM_RELEASE_PACKAGE_KEY: ${{ env.NPM_RELEASE_PACKAGE_KEY }}
-          NPM_RELEASE_REPOSITORY: ${{ env.NPM_RELEASE_REPOSITORY }}
         run: |
           ./scripts/release-npm-package.sh source
 
@@ -440,7 +428,7 @@ jobs:
         id: release-tag
         run: |
           set -euo pipefail
-          echo "tag=${NPM_RELEASE_PACKAGE_KEY}-${SOURCE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "tag=${NPM_PACKAGE_NAME##*/}-${SOURCE_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: 创建 GitHub Release
         env:
@@ -448,7 +436,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "${{ steps.release-tag.outputs.tag }}" \
-            --repo "${NPM_RELEASE_REPOSITORY}" \
+            --repo "${{ github.repository }}" \
             --title "${{ steps.release-tag.outputs.tag }}" \
             --notes "npm release assets for ${NPM_PACKAGE_NAME}@${SOURCE_TAG}" \
             --verify-tag || true
@@ -461,7 +449,7 @@ jobs:
           find release-artifacts -type f | sort > /tmp/release-assets.txt
           while IFS= read -r asset; do
             gh release upload "${{ steps.release-tag.outputs.tag }}" "$asset" \
-              --repo "${NPM_RELEASE_REPOSITORY}" \
+              --repo "${{ github.repository }}" \
               --clobber
           done < /tmp/release-assets.txt
 
@@ -501,7 +489,5 @@ jobs:
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-          NPM_RELEASE_PACKAGE_KEY: ${{ env.NPM_RELEASE_PACKAGE_KEY }}
-          NPM_RELEASE_REPOSITORY: ${{ env.NPM_RELEASE_REPOSITORY }}
         run: |
           ./scripts/release-npm-package.sh source

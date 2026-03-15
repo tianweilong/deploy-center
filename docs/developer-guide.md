@@ -155,10 +155,12 @@
 - 操作系统：`win32`
 - 架构：`x64`
 
-新增的 npm 发布输入还包括：
+GitHub Release 仓库固定使用当前仓库 `deploy-center`，即 GitHub Actions 上下文中的 `github.repository`。
 
-- `npm_release_package_key`：GitHub Release 包标识
-- `npm_release_repository`：公开 GitHub Release 仓库，格式为 `owner/repo`
+`package-key` 不再显式传入，而是由 `NPM_PACKAGE_NAME` 去掉 scope 后自动推导：
+
+- `@vino.tian/vibe-kanban` -> `vibe-kanban`
+- `foo` -> `foo`
 
 GitHub Release tag 规则固定为：
 
@@ -192,7 +194,7 @@ GitHub Release tag 规则固定为：
 `release-github-release` 任务运行在 GitHub 托管的 `ubuntu-latest` Runner 上。只有当全部 `release-npm-assets` 实例成功后，它才会执行：
 
 1. 下载全部平台 artifact。
-2. 使用 `<package-key>-vX.Y.Z` 创建 GitHub Release。
+2. 在当前仓库中使用 `<package-key>-vX.Y.Z` 创建 GitHub Release。
 3. 上传各平台压缩包和 `checksums.txt`。
 
 #### 4.4.3 release-npm

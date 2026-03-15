@@ -10,8 +10,6 @@ PACKAGE_FILE="${PACKAGE_FILE:-}"
 BUILD_ARTIFACT_DIR="${BUILD_ARTIFACT_DIR:-}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-}"
 ARCHIVE_EXT="${ARCHIVE_EXT:-}"
-NPM_RELEASE_PACKAGE_KEY="${NPM_RELEASE_PACKAGE_KEY:-}"
-NPM_RELEASE_REPOSITORY="${NPM_RELEASE_REPOSITORY:-}"
 : "${SOURCE_TAG:?缺少 SOURCE_TAG}"
 : "${NPM_PACKAGE_NAME:?缺少 NPM_PACKAGE_NAME}"
 : "${NPM_PACKAGE_DIR:?缺少 NPM_PACKAGE_DIR}"
@@ -31,6 +29,8 @@ if [ "$actual_package_name" != "$NPM_PACKAGE_NAME" ]; then
   echo "源仓库 npm 包名 ${actual_package_name} 与请求值 ${NPM_PACKAGE_NAME} 不一致。" >&2
   exit 1
 fi
+
+release_package_key="${NPM_PACKAGE_NAME##*/}"
 
 case "${NPM_VERSION_STRATEGY}" in
   package_json)
@@ -99,7 +99,7 @@ case "${NPM_VERSION_STRATEGY}" in
     ;;
 esac
 
-release_tag="${NPM_RELEASE_PACKAGE_KEY}-${SOURCE_TAG}"
+release_tag="${release_package_key}-${SOURCE_TAG}"
 
 if [ "${PUBLISH_ONLY}" = 'true' ]; then
   : "${ARTIFACTS_DIR:?缺少 ARTIFACTS_DIR}"
@@ -152,15 +152,13 @@ if [ -z "$PACKAGE_FILE" ] || [ ! -f "$PACKAGE_FILE" ]; then
 fi
 
 if [ "${BUILD_ONLY}" = 'true' ]; then
-  : "${NPM_RELEASE_PACKAGE_KEY:?缺少 NPM_RELEASE_PACKAGE_KEY}"
-  : "${NPM_RELEASE_REPOSITORY:?缺少 NPM_RELEASE_REPOSITORY}"
   : "${ARCHIVE_EXT:?缺少 ARCHIVE_EXT}"
   artifact_dir="${BUILD_ARTIFACT_DIR:-.release-artifacts/${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}}"
   asset_name="${release_tag}-${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}.${ARCHIVE_EXT}"
   rm -rf "${artifact_dir}"
   mkdir -p "${artifact_dir}"
   cp "${PACKAGE_FILE}" "${artifact_dir}/${asset_name}"
-  checksum_file="${artifact_dir}/${NPM_RELEASE_PACKAGE_KEY}-${SOURCE_TAG}-checksums.txt"
+  checksum_file="${artifact_dir}/${release_package_key}-${SOURCE_TAG}-checksums.txt"
   (
     cd "${artifact_dir}"
     shasum -a 256 "${asset_name}" > "$(basename "${checksum_file}")"
