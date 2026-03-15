@@ -138,7 +138,44 @@
 
 ### 4.4 release-npm 阶段
 
-`release-npm` 任务运行在带 `self-hosted`、`macOS`、`ARM64` 标签的自托管 Runner 上，只在 `release_targets` 包含 `npm` 时执行。之所以不切到 Linux ARM64 服务器，是因为当前优先要产出 macOS 包，而 Linux ARM64 无法直接稳定构建 macOS 产物。该任务会：
+当 `release_targets` 包含 `npm` 时，工作流会拆成三个阶段执行：
+
+- `release-npm-assets`：按平台矩阵构建 GitHub Release 资产。
+- `release-github-release`：创建 GitHub Release 并上传平台资产。
+- `release-npm`：发布轻量 npm 包，由安装脚本在安装时按平台下载对应资产。
+
+当前首版支持的平台目标为：
+
+- `linux-x64`
+- `win32-x64`
+- `darwin-arm64`
+
+其中 Windows 在 workflow 与脚本内部使用 Node/npm 生态常见的标识：
+
+- 操作系统：`win32`
+- 架构：`x64`
+
+GitHub Release 仓库固定使用当前仓库 `deploy-center`，即 GitHub Actions 上下文中的 `github.repository`。
+
+`package-key` 不再显式传入，而是由 `NPM_PACKAGE_NAME` 去掉 scope 后自动推导：
+
+- `@vino.tian/vibe-kanban` -> `vibe-kanban`
+- `foo` -> `foo`
+
+GitHub Release tag 规则固定为：
+
+- `<package-key>-vX.Y.Z`
+
+典型资产文件名为：
+
+- `<package-key>-vX.Y.Z-linux-x64.tar.gz`
+- `<package-key>-vX.Y.Z-win32-x64.zip`
+- `<package-key>-vX.Y.Z-darwin-arm64.tar.gz`
+- `<package-key>-vX.Y.Z-checksums.txt`
+
+#### 4.4.1 release-npm-assets
+
+`release-npm-assets` 任务运行在 GitHub 托管 Runner 上，并根据矩阵分别使用 `ubuntu-latest`、`windows-latest` 和 `macos-15`。每个矩阵实例会：
 
 1. 检出应用源仓库到 `source/`。
 2. 设置 Node.js、pnpm 与 Rust 工具链。
@@ -148,11 +185,28 @@
    - `source_tag`：直接使用 `SOURCE_TAG` 去掉前缀 `v` 后的值
    - `base_patch_offset`：基于 `npm_base_version_file` 和 `npm_version_patch_factor` 校验映射关系并计算发布版本
 5. 执行 `pnpm i --frozen-lockfile`。
-6. 执行 `pnpm run build:npx` 生成 tgz 包。
-7. 在 CI 工作目录里对 `npm_package_dir` 下的 `package.json` 执行 `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`。
-8. 使用 `NODE_AUTH_TOKEN` 执行 `npm publish --access public`；若版本已存在则跳过发布。
+6. 带上 `TARGET_OS` 与 `TARGET_ARCH` 执行 `pnpm run build:npx`。
+7. 生成带 `package-key` 与平台后缀的压缩包，并输出 `checksums.txt`。
+8. 将这些文件作为 workflow artifact 上传。
 
-### 4.4.1 npm 版本策略
+#### 4.4.2 release-github-release
+
+`release-github-release` 任务运行在 GitHub 托管的 `ubuntu-latest` Runner 上。只有当全部 `release-npm-assets` 实例成功后，它才会执行：
+
+1. 下载全部平台 artifact。
+2. 在当前仓库中使用 `<package-key>-vX.Y.Z` 创建 GitHub Release。
+3. 上传各平台压缩包和 `checksums.txt`。
+
+#### 4.4.3 release-npm
+
+`release-npm` 任务运行在 GitHub 托管的 `ubuntu-latest` Runner 上。只有当 GitHub Release 资产上传成功后，它才会执行：
+
+1. 检出应用源仓库到 `source/`。
+2. 设置 Node.js 与 pnpm，并升级 npm 以满足 Trusted Publishing 要求。
+3. 发布一个轻量 npm 包，不再把多平台资产重新打进 npm tarball。
+4. 用户在 `npm install -g` 时，由安装脚本识别平台，并只下载当前平台对应的一个 GitHub Release 资产。
+
+### 4.4.4 npm 版本策略
 
 `deploy-center` 本身不写死任何源仓库的 npm 目录结构或版本规则，而是通过 dispatch / workflow 输入获取以下元数据：
 
@@ -167,7 +221,7 @@
 - `source_tag`
 - `base_patch_offset`
 
-### 4.4.2 npm 版本映射（`vibe-kanban` 当前用法）
+### 4.4.5 npm 版本映射（`vibe-kanban` 当前用法）
 
 当根 `package.json` 的基线版本为 `X.Y.Z` 时：
 

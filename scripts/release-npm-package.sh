@@ -2,10 +2,23 @@
 set -euo pipefail
 
 SOURCE_DIR="${1:-source}"
+BUILD_ONLY="${BUILD_ONLY:-false}"
+PUBLISH_ONLY="${PUBLISH_ONLY:-false}"
+TARGET_OS="${TARGET_OS:-}"
+TARGET_ARCH="${TARGET_ARCH:-}"
+PACKAGE_FILE="${PACKAGE_FILE:-}"
+BUILD_ARTIFACT_DIR="${BUILD_ARTIFACT_DIR:-}"
+ARTIFACTS_DIR="${ARTIFACTS_DIR:-}"
+ARCHIVE_EXT="${ARCHIVE_EXT:-}"
 : "${SOURCE_TAG:?缺少 SOURCE_TAG}"
 : "${NPM_PACKAGE_NAME:?缺少 NPM_PACKAGE_NAME}"
 : "${NPM_PACKAGE_DIR:?缺少 NPM_PACKAGE_DIR}"
 : "${NPM_VERSION_STRATEGY:?缺少 NPM_VERSION_STRATEGY}"
+
+if [ "${BUILD_ONLY}" = 'true' ] && [ "${PUBLISH_ONLY}" = 'true' ]; then
+  echo 'BUILD_ONLY 与 PUBLISH_ONLY 不能同时为 true。' >&2
+  exit 1
+fi
 
 cd "$SOURCE_DIR"
 
@@ -16,6 +29,8 @@ if [ "$actual_package_name" != "$NPM_PACKAGE_NAME" ]; then
   echo "源仓库 npm 包名 ${actual_package_name} 与请求值 ${NPM_PACKAGE_NAME} 不一致。" >&2
   exit 1
 fi
+
+release_package_key="${NPM_PACKAGE_NAME##*/}"
 
 case "${NPM_VERSION_STRATEGY}" in
   package_json)
@@ -84,8 +99,46 @@ case "${NPM_VERSION_STRATEGY}" in
     ;;
 esac
 
+release_tag="${release_package_key}-${SOURCE_TAG}"
+
+if [ "${PUBLISH_ONLY}" = 'true' ]; then
+  : "${ARTIFACTS_DIR:?缺少 ARTIFACTS_DIR}"
+
+  package_dir="${NPM_PACKAGE_DIR%/}"
+  found_artifact=false
+  while IFS= read -r artifact_package_dir; do
+    found_artifact=true
+    cp -R "${artifact_package_dir}/." "${package_dir}/"
+  done < <(find "${ARTIFACTS_DIR}" -type d -path '*/package' | sort)
+
+  if [ "${found_artifact}" != 'true' ]; then
+    echo "在 ${ARTIFACTS_DIR} 中未找到待合并的 package 目录。" >&2
+    exit 1
+  fi
+
+  cd "${package_dir}"
+  npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version
+  rm -f ./*.tgz
+  npm pack
+  PACKAGE_FILE=$(find . -maxdepth 1 -name '*.tgz' | head -n1)
+
+  if [ -z "${PACKAGE_FILE}" ] || [ ! -f "${PACKAGE_FILE}" ]; then
+    echo '缺少待发布的 tgz 包。' >&2
+    exit 1
+  fi
+
+  if npm view "${actual_package_name}@${PUBLISH_VERSION}" version >/dev/null 2>&1; then
+    echo "${actual_package_name}@${PUBLISH_VERSION} 已存在，跳过发布。"
+    exit 0
+  fi
+
+  echo "通过 Trusted Publishing 发布 ${PACKAGE_FILE} -> ${actual_package_name}@${PUBLISH_VERSION}"
+  npm publish "$PACKAGE_FILE" --access public
+  exit 0
+fi
+
 pnpm i --frozen-lockfile
-pnpm run build:npx
+TARGET_OS="${TARGET_OS}" TARGET_ARCH="${TARGET_ARCH}" pnpm run build:npx
 
 cd "${NPM_PACKAGE_DIR}"
 npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version
@@ -96,6 +149,22 @@ PACKAGE_FILE=$(find . -maxdepth 1 -name '*.tgz' | head -n1)
 if [ -z "$PACKAGE_FILE" ] || [ ! -f "$PACKAGE_FILE" ]; then
   echo '缺少待发布的 tgz 包。' >&2
   exit 1
+fi
+
+if [ "${BUILD_ONLY}" = 'true' ]; then
+  : "${ARCHIVE_EXT:?缺少 ARCHIVE_EXT}"
+  artifact_dir="${BUILD_ARTIFACT_DIR:-.release-artifacts/${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}}"
+  asset_name="${release_tag}-${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}.${ARCHIVE_EXT}"
+  rm -rf "${artifact_dir}"
+  mkdir -p "${artifact_dir}"
+  cp "${PACKAGE_FILE}" "${artifact_dir}/${asset_name}"
+  checksum_file="${artifact_dir}/${release_package_key}-${SOURCE_TAG}-checksums.txt"
+  (
+    cd "${artifact_dir}"
+    shasum -a 256 "${asset_name}" > "$(basename "${checksum_file}")"
+  )
+  echo "仅构建 ${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown} Release 资产目录：${artifact_dir}"
+  exit 0
 fi
 
 if npm view "${actual_package_name}@${PUBLISH_VERSION}" version >/dev/null 2>&1; then

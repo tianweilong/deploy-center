@@ -72,6 +72,7 @@ jobs:
       VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      npm_matrix: ${{ steps.matrix.outputs.npm_matrix }}
       has_services: ${{ steps.targets.outputs.has_services }}
       has_npm: ${{ steps.targets.outputs.has_npm }}
       service_config_path: ${{ steps.targets.outputs.service_config_path }}
@@ -157,6 +158,13 @@ jobs:
         name: 构建服务矩阵
         run: |
           set -euo pipefail
+          if [ "${{ steps.targets.outputs.has_npm }}" = 'true' ]; then
+            npm_matrix='{"include":[{"runner":"ubuntu-latest","target":"linux-x64","target_os":"linux","target_arch":"x64","archive_ext":"tar.gz"},{"runner":"windows-latest","target":"win32-x64","target_os":"win32","target_arch":"x64","archive_ext":"zip"},{"runner":"macos-15","target":"darwin-arm64","target_os":"darwin","target_arch":"arm64","archive_ext":"tar.gz"}]}'
+          else
+            npm_matrix='{"include":[]}'
+          fi
+          echo "npm_matrix=${npm_matrix}" >> "$GITHUB_OUTPUT"
+
           if [ "${{ steps.targets.outputs.has_services }}" != 'true' ]; then
             echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
             exit 0
@@ -269,10 +277,13 @@ jobs:
           set -euo pipefail
           ./scripts/commit-deployment-state-with-retry.sh
 
-  release-npm:
+  release-npm-assets:
     needs: prepare
     if: ${{ needs.prepare.outputs.has_npm == 'true' }}
-    runs-on: macos-15
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.npm_matrix) }}
     steps:
       - uses: actions/checkout@v6
 
@@ -292,9 +303,53 @@ jobs:
           PNPM_VERSION: 10.13.1
 
       - name: 升级 npm 以满足 Trusted Publishing 要求
+        shell: bash
         run: npm install -g npm@11.5.1
 
+      - name: 打印 Linux Runner 信息
+        if: ${{ matrix.target_os == 'linux' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+          echo "RUNNER_NAME=${RUNNER_NAME}"
+          echo '--- uname -a ---'
+          uname -a
+          echo '--- lscpu ---'
+          lscpu
+          echo '--- free -h ---'
+          free -h
+          echo '--- df -h ---'
+          df -h
+          echo '--- node --version ---'
+          node --version
+          echo '--- npm --version ---'
+          npm --version
+
+      - name: 打印 Windows Runner 信息
+        if: ${{ matrix.target_os == 'win32' }}
+        shell: pwsh
+        run: |
+          Write-Host "RUNNER_OS=$env:RUNNER_OS"
+          Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
+          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+          Write-Host '--- Get-ComputerInfo ---'
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer
+          Write-Host '--- Get-CimInstance Win32_OperatingSystem ---'
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture, TotalVisibleMemorySize
+          Write-Host '--- Get-CimInstance Win32_Processor ---'
+          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
+          Write-Host '--- Get-PSDrive -PSProvider FileSystem ---'
+          Get-PSDrive -PSProvider FileSystem
+          Write-Host '--- node --version ---'
+          node --version
+          Write-Host '--- npm --version ---'
+          npm --version
+
       - name: 打印 macOS Runner 信息
+        if: ${{ matrix.target_os == 'darwin' }}
+        shell: bash
         run: |
           set -euo pipefail
           echo "RUNNER_OS=${RUNNER_OS}"
@@ -320,7 +375,112 @@ jobs:
         with:
           toolchain: nightly-2025-12-04
 
-      - name: 构建并通过 Trusted Publishing 发布 npm 包
+      - name: 构建 npm 平台产物
+        shell: bash
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          BUILD_ONLY: true
+          TARGET_OS: ${{ matrix.target_os }}
+          TARGET_ARCH: ${{ matrix.target_arch }}
+          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+          BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}
+          SOURCE_TAG: ${{ env.SOURCE_TAG }}
+          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
+          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
+          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
+          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
+          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
+        run: |
+          ./scripts/release-npm-package.sh source
+
+      - name: 上传 npm 平台产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-${{ matrix.target }}
+          path: npm-artifacts/${{ matrix.target }}
+          if-no-files-found: error
+
+  release-github-release:
+    needs:
+      - prepare
+      - release-npm-assets
+    if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-npm-assets.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 下载 npm 平台产物
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          pattern: npm-package-*
+
+      - name: 生成 GitHub Release tag
+        id: release-tag
+        run: |
+          set -euo pipefail
+          echo "tag=${NPM_PACKAGE_NAME##*/}-${SOURCE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: 创建 GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.release-tag.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ steps.release-tag.outputs.tag }}" \
+            --notes "npm release assets for ${NPM_PACKAGE_NAME}@${SOURCE_TAG}" \
+            --verify-tag || true
+
+      - name: 上传 GitHub Release 资产
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          find release-artifacts -type f | sort > /tmp/release-assets.txt
+          while IFS= read -r asset; do
+            gh release upload "${{ steps.release-tag.outputs.tag }}" "$asset" \
+              --repo "${{ github.repository }}" \
+              --clobber
+          done < /tmp/release-assets.txt
+
+  release-npm:
+    needs:
+      - prepare
+      - release-github-release
+    if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-github-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 设置 Node 与 pnpm
+        uses: ./source/.github/actions/setup-node
+        env:
+          NODE_VERSION: 24
+          PNPM_VERSION: 10.13.1
+
+      - name: 升级 npm 以满足 Trusted Publishing 要求
+        run: npm install -g npm@11.5.1
+
+      - name: 通过 Trusted Publishing 发布轻量 npm 包
         env:
           NODE_OPTIONS: --max-old-space-size=6144
           SOURCE_TAG: ${{ env.SOURCE_TAG }}
