@@ -17,8 +17,7 @@ if grep -q '\[self-hosted, macOS, ARM64\]' "$file"; then
   echo 'npm 发布不应再使用自托管 macOS runner。' >&2
   exit 1
 fi
-test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 3
-grep -q 'runs-on: macos-15' "$file"
+test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 4
 grep -q 'docker/setup-qemu-action@v3' "$file"
 grep -q 'docker/build-push-action@v6' "$file"
 grep -q 'registry: ghcr.io' "$file"
@@ -43,22 +42,29 @@ if grep -q '^      services:$' "$file"; then
   exit 1
 fi
 grep -q 'has_npm' "$file"
-grep -q 'release-npm:' "$file"
+grep -q 'npm_matrix' "$file"
+grep -q 'release-npm-build:' "$file"
+grep -q 'release-npm-publish:' "$file"
+grep -q 'windows-latest' "$file"
+grep -q 'upload-artifact' "$file"
+grep -q 'download-artifact' "$file"
+grep -q 'BUILD_ONLY: true' "$file"
+grep -q 'PUBLISH_ONLY: true' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'NODE_VERSION: 24' "$file"
 grep -q 'npm install -g npm@11.5.1' "$file"
 grep -q '打印 Linux Runner 信息' "$file"
-grep -q '打印 macOS Runner 信息' "$file"
+grep -q '打印 Windows Runner 信息' "$file"
 grep -q 'RUNNER_OS=${RUNNER_OS}' "$file"
 grep -q 'RUNNER_ARCH=${RUNNER_ARCH}' "$file"
 grep -q 'RUNNER_NAME=${RUNNER_NAME}' "$file"
 grep -q 'lscpu' "$file"
 grep -q 'free -h' "$file"
 grep -q 'docker buildx version' "$file"
-grep -q 'sw_vers' "$file"
-grep -q 'machdep.cpu.brand_string' "$file"
-grep -q 'hw.ncpu' "$file"
-grep -q 'hw.memsize' "$file"
+grep -q 'Get-ComputerInfo' "$file"
+grep -q 'Get-CimInstance Win32_OperatingSystem' "$file"
+grep -q 'Get-CimInstance Win32_Processor' "$file"
+grep -q 'Get-PSDrive -PSProvider FileSystem' "$file"
 grep -q 'node --version' "$file"
 grep -q 'npm --version' "$file"
 if ! grep -q 'NODE_OPTIONS: --max-old-space-size=6144' "$file"; then

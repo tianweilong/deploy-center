@@ -138,7 +138,24 @@
 
 ### 4.4 release-npm 阶段
 
-`release-npm` 任务运行在带 `self-hosted`、`macOS`、`ARM64` 标签的自托管 Runner 上，只在 `release_targets` 包含 `npm` 时执行。之所以不切到 Linux ARM64 服务器，是因为当前优先要产出 macOS 包，而 Linux ARM64 无法直接稳定构建 macOS 产物。该任务会：
+当 `release_targets` 包含 `npm` 时，工作流会拆成两个阶段执行：
+
+- `release-npm-build`：按 npm 平台矩阵分别构建平台产物。
+- `release-npm-publish`：下载全部平台产物后，统一打包并通过 Trusted Publishing 发布。
+
+当前首版支持的平台目标为：
+
+- `linux-x64`
+- `win32-x64`
+
+其中 Windows 在 workflow 与脚本内部使用 Node/npm 生态常见的标识：
+
+- 操作系统：`win32`
+- 架构：`x64`
+
+#### 4.4.1 release-npm-build
+
+`release-npm-build` 任务运行在 GitHub 托管 Runner 上，并根据矩阵分别使用 `ubuntu-latest` 和 `windows-latest`。每个矩阵实例会：
 
 1. 检出应用源仓库到 `source/`。
 2. 设置 Node.js、pnpm 与 Rust 工具链。
@@ -148,11 +165,21 @@
    - `source_tag`：直接使用 `SOURCE_TAG` 去掉前缀 `v` 后的值
    - `base_patch_offset`：基于 `npm_base_version_file` 和 `npm_version_patch_factor` 校验映射关系并计算发布版本
 5. 执行 `pnpm i --frozen-lockfile`。
-6. 执行 `pnpm run build:npx` 生成 tgz 包。
-7. 在 CI 工作目录里对 `npm_package_dir` 下的 `package.json` 执行 `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`。
-8. 使用 `NODE_AUTH_TOKEN` 执行 `npm publish --access public`；若版本已存在则跳过发布。
+6. 带上 `TARGET_OS` 与 `TARGET_ARCH` 执行 `pnpm run build:npx`。
+7. 将构建后的包目录导出为 workflow artifact，等待最终发布阶段汇总。
 
-### 4.4.1 npm 版本策略
+#### 4.4.2 release-npm-publish
+
+`release-npm-publish` 任务运行在 GitHub 托管的 `ubuntu-latest` Runner 上。只有当全部 `release-npm-build` 实例成功后，它才会执行：
+
+1. 检出应用源仓库到 `source/`。
+2. 设置 Node.js 与 pnpm，并升级 npm 以满足 Trusted Publishing 要求。
+3. 下载所有 npm 平台 artifact 并合并回 `npm_package_dir`。
+4. 在 CI 工作目录里对 `npm_package_dir` 下的 `package.json` 执行 `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`。
+5. 执行 `npm pack` 生成最终待发布的 `tgz`。
+6. 使用 Trusted Publishing 执行 `npm publish --access public`；若版本已存在则跳过发布。
+
+### 4.4.3 npm 版本策略
 
 `deploy-center` 本身不写死任何源仓库的 npm 目录结构或版本规则，而是通过 dispatch / workflow 输入获取以下元数据：
 
@@ -167,7 +194,7 @@
 - `source_tag`
 - `base_patch_offset`
 
-### 4.4.2 npm 版本映射（`vibe-kanban` 当前用法）
+### 4.4.4 npm 版本映射（`vibe-kanban` 当前用法）
 
 当根 `package.json` 的基线版本为 `X.Y.Z` 时：
 
