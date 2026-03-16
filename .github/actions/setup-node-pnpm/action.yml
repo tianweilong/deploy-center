@@ -1,0 +1,46 @@
+name: 设置 Node 与 pnpm
+description: 统一设置 Node.js、pnpm、pnpm store 缓存和 npm 版本
+
+inputs:
+  node-version:
+    description: Node.js 版本
+    required: true
+  pnpm-version:
+    description: pnpm 版本
+    required: true
+  lockfile-path:
+    description: lockfile 路径
+    required: true
+  npm-version:
+    description: npm 版本
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 设置 Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: 设置 pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: 获取 pnpm store 目录
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+    - name: 缓存 pnpm store
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles(inputs.lockfile-path) }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
+
+    - name: 升级 npm 以满足 Trusted Publishing 要求
+      shell: bash
+      run: npm install -g npm@${{ inputs.npm-version }}

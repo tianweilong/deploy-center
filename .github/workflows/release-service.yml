@@ -188,10 +188,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
-
-      - name: 检出源仓库
-        uses: actions/checkout@v6
+      - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
           ref: ${{ env.SOURCE_SHA }}
@@ -199,24 +196,9 @@ jobs:
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
           fetch-depth: 0
 
-      - name: 打印 Linux Runner 信息
-        run: |
-          set -euo pipefail
-          echo "RUNNER_OS=${RUNNER_OS}"
-          echo "RUNNER_ARCH=${RUNNER_ARCH}"
-          echo "RUNNER_NAME=${RUNNER_NAME}"
-          echo '--- uname -a ---'
-          uname -a
-          echo '--- lscpu ---'
-          lscpu
-          echo '--- free -h ---'
-          free -h
-          echo '--- df -h ---'
-          df -h
-          echo '--- docker version ---'
-          docker version
-          echo '--- docker buildx version ---'
-          docker buildx version
+      - uses: ./.github/actions/print-runner-info
+        with:
+          target-os: linux
 
       - id: image-tags
         name: 生成镜像标签
@@ -285,10 +267,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.npm_matrix) }}
     steps:
-      - uses: actions/checkout@v6
-
-      - name: 检出源仓库
-        uses: actions/checkout@v6
+      - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
           ref: ${{ env.SOURCE_SHA }}
@@ -302,96 +281,16 @@ jobs:
           go-version-file: source/go.mod
           cache: true
 
-      - name: 设置 Node.js
-        uses: actions/setup-node@v5
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: 24
+          pnpm-version: 10.13.1
+          lockfile-path: source/pnpm-lock.yaml
+          npm-version: 11.5.1
 
-      - name: 设置 pnpm
-        uses: pnpm/action-setup@v4
+      - uses: ./.github/actions/print-runner-info
         with:
-          version: 10.13.1
-
-      - name: 获取 pnpm store 目录
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
-
-      - name: 缓存 pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('source/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
-
-      - name: 升级 npm 以满足 Trusted Publishing 要求
-        shell: bash
-        run: npm install -g npm@11.5.1
-
-      - name: 打印 Linux Runner 信息
-        if: ${{ matrix.target_os == 'linux' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "RUNNER_OS=${RUNNER_OS}"
-          echo "RUNNER_ARCH=${RUNNER_ARCH}"
-          echo "RUNNER_NAME=${RUNNER_NAME}"
-          echo '--- uname -a ---'
-          uname -a
-          echo '--- lscpu ---'
-          lscpu
-          echo '--- free -h ---'
-          free -h
-          echo '--- df -h ---'
-          df -h
-          echo '--- node --version ---'
-          node --version
-          echo '--- npm --version ---'
-          npm --version
-
-      - name: 打印 Windows Runner 信息
-        if: ${{ matrix.target_os == 'win32' }}
-        shell: pwsh
-        run: |
-          Write-Host "RUNNER_OS=$env:RUNNER_OS"
-          Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
-          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
-          Write-Host '--- Get-ComputerInfo ---'
-          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer
-          Write-Host '--- Get-CimInstance Win32_OperatingSystem ---'
-          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture, TotalVisibleMemorySize
-          Write-Host '--- Get-CimInstance Win32_Processor ---'
-          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
-          Write-Host '--- Get-PSDrive -PSProvider FileSystem ---'
-          Get-PSDrive -PSProvider FileSystem
-          Write-Host '--- node --version ---'
-          node --version
-          Write-Host '--- npm --version ---'
-          npm --version
-
-      - name: 打印 macOS Runner 信息
-        if: ${{ matrix.target_os == 'darwin' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "RUNNER_OS=${RUNNER_OS}"
-          echo "RUNNER_ARCH=${RUNNER_ARCH}"
-          echo "RUNNER_NAME=${RUNNER_NAME}"
-          echo '--- sw_vers ---'
-          sw_vers
-          echo '--- CPU ---'
-          sysctl -n machdep.cpu.brand_string
-          echo '--- CPU 核心数 ---'
-          sysctl -n hw.ncpu
-          echo '--- 内存字节数 ---'
-          sysctl -n hw.memsize
-          echo '--- df -h ---'
-          df -h
-          echo '--- node --version ---'
-          node --version
-          echo '--- npm --version ---'
-          npm --version
+          target-os: ${{ matrix.target_os }}
 
       - name: 安装 Rust 工具链
         uses: dtolnay/rust-toolchain@stable
@@ -429,10 +328,7 @@ jobs:
     if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-npm-assets.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-
-      - name: 检出源仓库
-        uses: actions/checkout@v6
+      - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
           ref: ${{ env.SOURCE_SHA }}
@@ -482,10 +378,7 @@ jobs:
     if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-github-release.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-
-      - name: 检出源仓库
-        uses: actions/checkout@v6
+      - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
           ref: ${{ env.SOURCE_SHA }}
@@ -493,31 +386,12 @@ jobs:
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
           fetch-depth: 0
 
-      - name: 设置 Node.js
-        uses: actions/setup-node@v5
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: 24
-
-      - name: 设置 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-
-      - name: 获取 pnpm store 目录
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
-
-      - name: 缓存 pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('source/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
-
-      - name: 升级 npm 以满足 Trusted Publishing 要求
-        run: npm install -g npm@11.5.1
+          pnpm-version: 10.13.1
+          lockfile-path: source/pnpm-lock.yaml
+          npm-version: 11.5.1
 
       - name: 通过 Trusted Publishing 发布轻量 npm 包
         env:
