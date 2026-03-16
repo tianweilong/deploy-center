@@ -4,11 +4,11 @@ project: vibe-kanban
 repository: tianweilong/vibe-kanban
 deploy_mode: compose
 source:
-  ref: refs/tags/v0.1.3011
-  sha: 84cd3ec1324924120f1601ca65c87c98769389ca
+  ref: refs/tags/v0.1.3012
+  sha: ce7995a21b3e1063d91b4d2b180089f2386b844d
 image:
   repository: ghcr.io/tianweilong/vibe-kanban-relay
-  tag: v0.1.3011
+  tag: v0.1.3012
 compose:
   file: docker-compose.yml
   service_name: relay
