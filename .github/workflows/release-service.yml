@@ -391,6 +391,12 @@ jobs:
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
         run: |
+          if [ "${TARGET_OS}" = 'win32' ]; then
+            TMPDIR="$(cygpath -m "$RUNNER_TEMP")"
+            export TMPDIR TMP TEMP
+            TMP="$TMPDIR"
+            TEMP="$TMPDIR"
+          fi
           ./scripts/release-npm-package.sh source
 
       - name: 上传 npm 平台产物
