@@ -348,6 +348,11 @@ jobs:
           path: release-artifacts
           pattern: npm-package-*
 
+      - name: 合并多平台校验文件
+        run: |
+          set -euo pipefail
+          ./scripts/merge-release-checksums.sh release-artifacts
+
       - name: 生成 GitHub Release tag
         id: release-tag
         run: |
