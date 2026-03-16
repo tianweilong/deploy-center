@@ -61,6 +61,10 @@ grep -q 'download-artifact' "$file"
 grep -q 'BUILD_ONLY: true' "$file"
 grep -q 'gh release create' "$file"
 grep -q 'gh release upload' "$file"
+if grep -q -- '--verify-tag' "$file"; then
+  echo 'GitHub Release 资产发布不应强依赖仓库内已存在同名 tag。' >&2
+  exit 1
+fi
 grep -q 'github.repository' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'node-version: 24' "$file"

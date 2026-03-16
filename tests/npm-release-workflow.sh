@@ -43,6 +43,10 @@ grep -q 'pnpm run build:npx' "$script"
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"
 grep -q 'id-token: write' "$workflow"
 grep -q 'gh release create' "$workflow"
+if grep -q -- '--verify-tag' "$workflow"; then
+  echo 'GitHub Release 分发不应要求仓库内预先存在同名 tag。' >&2
+  exit 1
+fi
 grep -q 'npm publish' "$script"
 if grep -q 'NPM_RELEASE_PACKAGE_KEY' "$script"; then
   echo '脚本不应再依赖 NPM_RELEASE_PACKAGE_KEY。' >&2
