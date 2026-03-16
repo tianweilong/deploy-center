@@ -63,7 +63,12 @@ grep -q 'gh release create' "$file"
 grep -q 'gh release upload' "$file"
 grep -q 'github.repository' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
-grep -q 'NODE_VERSION: 24' "$file"
+grep -q 'node-version: 24' "$file"
+grep -q 'actions/setup-node@v5' "$file"
+grep -q 'pnpm/action-setup@v4' "$file"
+grep -q 'pnpm store path --silent' "$file"
+grep -q 'actions/cache@v4' "$file"
+grep -q 'pnpm-store-' "$file"
 grep -q 'npm install -g npm@11.5.1' "$file"
 grep -q '打印 Linux Runner 信息' "$file"
 grep -q '打印 Windows Runner 信息' "$file"
@@ -109,5 +114,9 @@ if grep -q 'TMPDIR="$(cygpath -m "$RUNNER_TEMP")"' "$file"; then
 fi
 if grep -q '修补 Windows 源仓库打包脚本路径兼容性' "$file"; then
   echo 'workflow 不应再修改源仓库 local-build.sh。' >&2
+  exit 1
+fi
+if grep -q 'uses: ./source/.github/actions/setup-node' "$file"; then
+  echo 'workflow 不应再依赖源仓库自带的 setup-node action。' >&2
   exit 1
 fi
