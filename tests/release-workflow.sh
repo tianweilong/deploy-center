@@ -84,6 +84,8 @@ grep -q 'hw.ncpu' "$file"
 grep -q 'hw.memsize' "$file"
 grep -q 'node --version' "$file"
 grep -q 'npm --version' "$file"
+grep -q 'TMPDIR="$(cygpath -m "$RUNNER_TEMP")"' "$file"
+grep -q 'export TMPDIR TMP TEMP' "$file"
 if ! grep -q 'NODE_OPTIONS: --max-old-space-size=6144' "$file"; then
   echo 'npm 发布步骤需要显式设置 NODE_OPTIONS 以抬高 Node 堆上限。' >&2
   exit 1
