@@ -64,6 +64,7 @@ grep -q 'gh release upload' "$file"
 grep -q 'github.repository' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'node-version: 24' "$file"
+test "$(grep -c '^      - uses: actions/checkout@v6$' "$file")" -eq 6
 grep -q 'uses: ./.github/actions/checkout-source' "$file"
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$file"
 grep -q 'uses: ./.github/actions/print-runner-info' "$file"

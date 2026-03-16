@@ -188,6 +188,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
@@ -267,6 +269,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.npm_matrix) }}
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
@@ -328,6 +332,8 @@ jobs:
     if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-npm-assets.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
@@ -378,6 +384,8 @@ jobs:
     if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-github-release.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}

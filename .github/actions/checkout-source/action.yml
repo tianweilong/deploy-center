@@ -1,5 +1,5 @@
 name: 检出源仓库
-description: 检出当前仓库，并将源仓库检出到指定目录
+description: 将源仓库检出到指定目录
 
 inputs:
   repository:
@@ -23,8 +23,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v6
-
     - uses: actions/checkout@v6
       with:
         repository: ${{ inputs.repository }}
