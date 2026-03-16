@@ -12,6 +12,7 @@ grep -q 'release-npm:' "$workflow"
 grep -q 'windows-latest' "$workflow"
 grep -q 'darwin-arm64' "$workflow"
 grep -q 'node-version: 24' "$workflow"
+test "$(grep -c '^      - uses: actions/checkout@v6$' "$workflow")" -eq 6
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$workflow"
 grep -q 'uses: ./.github/actions/checkout-source' "$workflow"
 grep -q 'actions/setup-go@v5' "$workflow"
