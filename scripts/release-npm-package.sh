@@ -21,6 +21,19 @@ if [ "${BUILD_ONLY}" = 'true' ] && [ "${PUBLISH_ONLY}" = 'true' ]; then
 fi
 
 cd "$SOURCE_DIR"
+source_root="$(pwd)"
+
+resolve_source_path() {
+  node -e "const path = require('node:path'); process.stdout.write(path.resolve(process.argv[1], process.argv[2]));" "$source_root" "$1"
+}
+
+if [ -n "$BUILD_ARTIFACT_DIR" ]; then
+  BUILD_ARTIFACT_DIR="$(resolve_source_path "$BUILD_ARTIFACT_DIR")"
+fi
+
+if [ -n "$ARTIFACTS_DIR" ]; then
+  ARTIFACTS_DIR="$(resolve_source_path "$ARTIFACTS_DIR")"
+fi
 
 package_json_path="${NPM_PACKAGE_DIR%/}/package.json"
 actual_package_name=$(node -p "require('./${package_json_path}').name")
