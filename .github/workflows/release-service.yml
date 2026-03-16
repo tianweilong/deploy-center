@@ -362,8 +362,7 @@ jobs:
           gh release create "${{ steps.release-tag.outputs.tag }}" \
             --repo "${{ github.repository }}" \
             --title "${{ steps.release-tag.outputs.tag }}" \
-            --notes "npm release assets for ${NPM_PACKAGE_NAME}@${SOURCE_TAG}" \
-            --verify-tag || true
+            --notes "npm release assets for ${NPM_PACKAGE_NAME}@${SOURCE_TAG}"
 
       - name: 上传 GitHub Release 资产
         env:
