@@ -50,7 +50,7 @@ grep -q 'pnpm run build:npx' "$script"
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"
 grep -q 'id-token: write' "$workflow"
 grep -q 'gh release create' "$workflow"
-grep -q './scripts/merge-release-checksums.sh release-artifacts' "$workflow"
+grep -q 'bash ./scripts/merge-release-checksums.sh release-artifacts' "$workflow"
 if grep -q -- '--verify-tag' "$workflow"; then
   echo 'GitHub Release 分发不应要求仓库内预先存在同名 tag。' >&2
   exit 1
