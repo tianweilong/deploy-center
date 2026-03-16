@@ -73,6 +73,13 @@ grep -q 'uses: ./.github/actions/checkout-source' "$file"
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$file"
 grep -q 'uses: ./.github/actions/print-runner-info' "$file"
 grep -q 'actions/setup-go@v5' "$file"
+grep -q "hashFiles('source/go.mod') != ''" "$file"
+grep -q 'go-version-file: source/go.mod' "$file"
+grep -q "hashFiles('source/rust-toolchain.toml', 'source/rust-toolchain') != ''" "$file"
+if grep -q 'toolchain: nightly-' "$file"; then
+  echo 'Rust 工具链版本不应在 workflow 中写死，应由源仓库标准文件决定。' >&2
+  exit 1
+fi
 grep -q 'lockfile-path: source/pnpm-lock.yaml' "$file"
 grep -q 'pnpm-version: 10.13.1' "$file"
 grep -q 'npm-version: 11.5.1' "$file"

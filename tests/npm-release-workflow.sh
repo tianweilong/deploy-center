@@ -16,9 +16,16 @@ test "$(grep -c '^      - uses: actions/checkout@v6$' "$workflow")" -eq 6
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$workflow"
 grep -q 'uses: ./.github/actions/checkout-source' "$workflow"
 grep -q 'actions/setup-go@v5' "$workflow"
+grep -q "hashFiles('source/go.mod') != ''" "$workflow"
+grep -q 'go-version-file: source/go.mod' "$workflow"
 grep -q 'lockfile-path: source/pnpm-lock.yaml' "$workflow"
 grep -q 'pnpm-version: 10.13.1' "$workflow"
 grep -q 'npm-version: 11.5.1' "$workflow"
+grep -q "hashFiles('source/rust-toolchain.toml', 'source/rust-toolchain') != ''" "$workflow"
+if grep -q 'toolchain: nightly-' "$workflow"; then
+  echo 'Rust 工具链版本不应在 workflow 中写死，应由源仓库标准文件决定。' >&2
+  exit 1
+fi
 if grep -q 'make npx-dev-build' "$script"; then
   echo '不应依赖 make npx-dev-build。' >&2
   exit 1

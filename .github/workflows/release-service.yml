@@ -280,6 +280,7 @@ jobs:
           fetch-depth: 0
 
       - name: 安装 Go
+        if: ${{ hashFiles('source/go.mod') != '' }}
         uses: actions/setup-go@v5
         with:
           go-version-file: source/go.mod
@@ -297,9 +298,8 @@ jobs:
           target-os: ${{ matrix.target_os }}
 
       - name: 安装 Rust 工具链
+        if: ${{ hashFiles('source/rust-toolchain.toml', 'source/rust-toolchain') != '' }}
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly-2025-12-04
 
       - name: 构建 npm 平台产物
         shell: bash
