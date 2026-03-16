@@ -296,11 +296,29 @@ jobs:
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
           fetch-depth: 0
 
-      - name: 设置 Node 与 pnpm
-        uses: ./source/.github/actions/setup-node
-        env:
-          NODE_VERSION: 24
-          PNPM_VERSION: 10.13.1
+      - name: 设置 Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: 设置 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: 获取 pnpm store 目录
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: 缓存 pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('source/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
 
       - name: 升级 npm 以满足 Trusted Publishing 要求
         shell: bash
@@ -470,11 +488,29 @@ jobs:
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
           fetch-depth: 0
 
-      - name: 设置 Node 与 pnpm
-        uses: ./source/.github/actions/setup-node
-        env:
-          NODE_VERSION: 24
-          PNPM_VERSION: 10.13.1
+      - name: 设置 Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: 设置 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: 获取 pnpm store 目录
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: 缓存 pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('source/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
 
       - name: 升级 npm 以满足 Trusted Publishing 要求
         run: npm install -g npm@11.5.1
