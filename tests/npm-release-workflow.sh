@@ -12,11 +12,11 @@ grep -q 'release-npm:' "$workflow"
 grep -q 'windows-latest' "$workflow"
 grep -q 'darwin-arm64' "$workflow"
 grep -q 'node-version: 24' "$workflow"
-grep -q 'actions/setup-node@v5' "$workflow"
-grep -q 'pnpm/action-setup@v4' "$workflow"
-grep -q 'pnpm store path --silent' "$workflow"
-grep -q 'actions/cache@v4' "$workflow"
-grep -q 'npm install -g npm@11.5.1' "$workflow"
+grep -q 'uses: ./.github/actions/setup-node-pnpm' "$workflow"
+grep -q 'uses: ./.github/actions/checkout-source' "$workflow"
+grep -q 'lockfile-path: source/pnpm-lock.yaml' "$workflow"
+grep -q 'pnpm-version: 10.13.1' "$workflow"
+grep -q 'npm-version: 11.5.1' "$workflow"
 if grep -q 'make npx-dev-build' "$script"; then
   echo '不应依赖 make npx-dev-build。' >&2
   exit 1

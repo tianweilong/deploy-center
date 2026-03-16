@@ -1,0 +1,81 @@
+name: 打印 Runner 信息
+description: 根据目标操作系统打印 runner 诊断信息
+
+inputs:
+  target-os:
+    description: 目标操作系统，可选 linux、win32、darwin
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 校验 target-os
+      if: ${{ inputs.target-os != 'linux' && inputs.target-os != 'win32' && inputs.target-os != 'darwin' }}
+      shell: bash
+      run: |
+        echo "不支持的 target-os：${{ inputs.target-os }}" >&2
+        exit 1
+
+    - name: 打印 Linux Runner 信息
+      if: ${{ inputs.target-os == 'linux' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "RUNNER_OS=${RUNNER_OS}"
+        echo "RUNNER_ARCH=${RUNNER_ARCH}"
+        echo "RUNNER_NAME=${RUNNER_NAME}"
+        echo '--- uname -a ---'
+        uname -a
+        echo '--- lscpu ---'
+        lscpu
+        echo '--- free -h ---'
+        free -h
+        echo '--- df -h ---'
+        df -h
+        echo '--- docker version ---'
+        docker version
+        echo '--- docker buildx version ---'
+        docker buildx version
+
+    - name: 打印 Windows Runner 信息
+      if: ${{ inputs.target-os == 'win32' }}
+      shell: pwsh
+      run: |
+        Write-Host "RUNNER_OS=$env:RUNNER_OS"
+        Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
+        Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+        Write-Host '--- Get-ComputerInfo ---'
+        Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer
+        Write-Host '--- Get-CimInstance Win32_OperatingSystem ---'
+        Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture, TotalVisibleMemorySize
+        Write-Host '--- Get-CimInstance Win32_Processor ---'
+        Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
+        Write-Host '--- Get-PSDrive -PSProvider FileSystem ---'
+        Get-PSDrive -PSProvider FileSystem
+        Write-Host '--- node --version ---'
+        node --version
+        Write-Host '--- npm --version ---'
+        npm --version
+
+    - name: 打印 macOS Runner 信息
+      if: ${{ inputs.target-os == 'darwin' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "RUNNER_OS=${RUNNER_OS}"
+        echo "RUNNER_ARCH=${RUNNER_ARCH}"
+        echo "RUNNER_NAME=${RUNNER_NAME}"
+        echo '--- sw_vers ---'
+        sw_vers
+        echo '--- CPU ---'
+        sysctl -n machdep.cpu.brand_string
+        echo '--- CPU 核心数 ---'
+        sysctl -n hw.ncpu
+        echo '--- 内存字节数 ---'
+        sysctl -n hw.memsize
+        echo '--- df -h ---'
+        df -h
+        echo '--- node --version ---'
+        node --version
+        echo '--- npm --version ---'
+        npm --version
