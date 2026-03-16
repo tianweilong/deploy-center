@@ -1,0 +1,18 @@
+---
+service: vibe-kanban-remote
+project: vibe-kanban
+repository: tianweilong/vibe-kanban
+deploy_mode: compose
+source:
+  ref: refs/tags/v0.1.3011
+  sha: 84cd3ec1324924120f1601ca65c87c98769389ca
+image:
+  repository: ghcr.io/tianweilong/vibe-kanban-remote
+  tag: v0.1.3011
+compose:
+  file: docker-compose.yml
+  service_name: remote
+healthcheck:
+  command: curl -fsS http://127.0.0.1:8081/v1/health
+agent:
+  channel: webhook

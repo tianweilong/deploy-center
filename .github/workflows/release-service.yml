@@ -1,4 +1,4 @@
-name: Release Service
+name: 发布服务
 
 on:
   repository_dispatch:
@@ -7,133 +7,487 @@ on:
   workflow_dispatch:
     inputs:
       source_repository:
-        description: Source repository
+        description: 源仓库
         required: true
         type: string
       source_ref:
-        description: Source ref
+        description: 源引用
         required: true
         type: string
       source_sha:
-        description: Source SHA
+        description: 源提交 SHA
         required: true
         type: string
-      target_environment:
-        description: Target environment
+      source_tag:
+        description: 源标签
         required: true
-        type: choice
-        options:
-          - dev
-          - prod
-      services:
-        description: Comma-separated services
-        required: true
+        type: string
+      release_targets:
+        description: 逗号分隔的发布目标
+        required: false
+        type: string
+      npm_package_name:
+        description: npm 包名
+        required: false
+        type: string
+      npm_package_dir:
+        description: npm 包所在目录
+        required: false
+        type: string
+      npm_version_strategy:
+        description: npm 版本策略
+        required: false
+        type: string
+      npm_base_version_file:
+        description: 基线版本文件
+        required: false
+        type: string
+      npm_version_patch_factor:
+        description: patch 映射因子
+        required: false
         type: string
 
 permissions:
   contents: write
+  packages: write
+  id-token: write
 
 env:
   SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || inputs.source_repository }}
   SOURCE_REF: ${{ github.event.client_payload.source_ref || inputs.source_ref }}
   SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
-  TARGET_ENVIRONMENT: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
-  TARGET_SERVICES: ${{ github.event.client_payload.services || inputs.services }}
+  SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}
+  RELEASE_TARGETS: ${{ github.event.client_payload.release_targets || inputs.release_targets }}
+  NPM_PACKAGE_NAME: ${{ github.event.client_payload.npm_package_name || inputs.npm_package_name }}
+  NPM_PACKAGE_DIR: ${{ github.event.client_payload.npm_package_dir || inputs.npm_package_dir }}
+  NPM_VERSION_STRATEGY: ${{ github.event.client_payload.npm_version_strategy || inputs.npm_version_strategy }}
+  NPM_BASE_VERSION_FILE: ${{ github.event.client_payload.npm_base_version_file || inputs.npm_base_version_file }}
+  NPM_VERSION_PATCH_FACTOR: ${{ github.event.client_payload.npm_version_patch_factor || inputs.npm_version_patch_factor }}
+  DEFAULT_IMAGE_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.event.client_payload.target_environment || inputs.target_environment }}
     env:
       VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      npm_matrix: ${{ steps.matrix.outputs.npm_matrix }}
+      has_services: ${{ steps.targets.outputs.has_services }}
+      has_npm: ${{ steps.targets.outputs.has_npm }}
+      service_config_path: ${{ steps.targets.outputs.service_config_path }}
+      target_services: ${{ steps.targets.outputs.target_services }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Checkout source repository
+      - name: 校验发布输入
+        run: |
+          set -euo pipefail
+          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${SOURCE_TAG}" ]; then
+            echo '缺少必填发布输入。' >&2
+            exit 1
+          fi
+
+          if [ -z "${RELEASE_TARGETS}" ]; then
+            echo '缺少发布目标：release_targets。' >&2
+            exit 1
+          fi
+
+          if printf '%s' "${RELEASE_TARGETS}" | grep -Eq '(^|,)[[:space:]]*npm([[:space:]]*,|$)'; then
+            if [ -z "${NPM_PACKAGE_NAME}" ] || [ -z "${NPM_PACKAGE_DIR}" ] || [ -z "${NPM_VERSION_STRATEGY}" ]; then
+              echo '当 release_targets 包含 npm 时必须提供 npm_package_name、npm_package_dir 和 npm_version_strategy。' >&2
+              exit 1
+            fi
+
+            if [ "${NPM_VERSION_STRATEGY}" = 'base_patch_offset' ] && { [ -z "${NPM_BASE_VERSION_FILE}" ] || [ -z "${NPM_VERSION_PATCH_FACTOR}" ]; }; then
+              echo '当 npm_version_strategy=base_patch_offset 时必须提供 npm_base_version_file 和 npm_version_patch_factor。' >&2
+              exit 1
+            fi
+          fi
+
+      - id: targets
+        name: 解析发布目标
+        run: |
+          set -euo pipefail
+          target_services=''
+          has_npm=false
+          source_repository_name="${SOURCE_REPOSITORY##*/}"
+          service_config_path="config/services.${source_repository_name}.json"
+
+          IFS=',' read -r -a targets <<< "${RELEASE_TARGETS}"
+          for raw_target in "${targets[@]}"; do
+            target=$(printf '%s' "${raw_target}" | xargs)
+            case "${target}" in
+              remote)
+                target_services="${target_services},vibe-kanban-remote"
+                ;;
+              relay)
+                target_services="${target_services},vibe-kanban-relay"
+                ;;
+              new-api)
+                target_services="${target_services},new-api"
+                ;;
+              npm)
+                has_npm=true
+                ;;
+              '')
+                ;;
+              *)
+                echo "不支持的发布目标：${target}" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          target_services=$(printf '%s' "${target_services}" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd, -)
+
+          if [ -n "${target_services}" ]; then
+            echo 'has_services=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has_services=false' >> "$GITHUB_OUTPUT"
+          fi
+          echo "has_npm=${has_npm}" >> "$GITHUB_OUTPUT"
+          if [ -n "${target_services}" ] && [ ! -f "${service_config_path}" ]; then
+            echo "缺少服务构建配置文件：${service_config_path}" >&2
+            exit 1
+          fi
+          echo "service_config_path=${service_config_path}" >> "$GITHUB_OUTPUT"
+          echo "target_services=${target_services}" >> "$GITHUB_OUTPUT"
+
+      - id: matrix
+        name: 构建服务矩阵
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.targets.outputs.has_npm }}" = 'true' ]; then
+            npm_matrix='{"include":[{"runner":"ubuntu-latest","target":"linux-x64","target_os":"linux","target_arch":"x64","archive_ext":"tar.gz"},{"runner":"windows-latest","target":"win32-x64","target_os":"win32","target_arch":"x64","archive_ext":"zip"},{"runner":"macos-15","target":"darwin-arm64","target_os":"darwin","target_arch":"arm64","archive_ext":"tar.gz"}]}'
+          else
+            npm_matrix='{"include":[]}'
+          fi
+          echo "npm_matrix=${npm_matrix}" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ steps.targets.outputs.has_services }}" != 'true' ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
+            SOURCE_TAG="${SOURCE_TAG}" \
+            VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
+            ruby scripts/prepare-release-matrix.rb "${{ steps.targets.outputs.service_config_path }}")
+          {
+            echo 'matrix<<EOF'
+            echo "$matrix"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.has_services == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
         uses: actions/checkout@v6
         with:
           repository: ${{ env.SOURCE_REPOSITORY }}
           ref: ${{ env.SOURCE_SHA }}
           path: source
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
 
-      - name: Validate release inputs
+      - name: 打印 Linux Runner 信息
         run: |
           set -euo pipefail
-          if [ -z "${SOURCE_REPOSITORY}" ] || [ -z "${SOURCE_REF}" ] || [ -z "${SOURCE_SHA}" ] || [ -z "${TARGET_ENVIRONMENT}" ] || [ -z "${TARGET_SERVICES}" ]; then
-            echo 'Missing required release input.' >&2
-            exit 1
-          fi
-          if [[ "${TARGET_SERVICES}" == *"vibe-kanban-remote"* ]]; then
-            if [ -z "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" ] || [[ "${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}" == CHANGE_ME* ]]; then
-              echo 'Environment variable VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL is not configured.' >&2
-              exit 1
-            fi
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+          echo "RUNNER_NAME=${RUNNER_NAME}"
+          echo '--- uname -a ---'
+          uname -a
+          echo '--- lscpu ---'
+          lscpu
+          echo '--- free -h ---'
+          free -h
+          echo '--- df -h ---'
+          df -h
+          echo '--- docker version ---'
+          docker version
+          echo '--- docker buildx version ---'
+          docker buildx version
+
+      - id: image-tags
+        name: 生成镜像标签
+        working-directory: source
+        env:
+          IMAGE_REPOSITORY: ${{ matrix.image_repository }}
+        run: |
+          set -euo pipefail
+          latest_tag=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
+          tags="${IMAGE_REPOSITORY}:${SOURCE_TAG}"
+
+          if [ -n "${latest_tag}" ] && [ "${latest_tag}" = "${SOURCE_TAG}" ]; then
+            tags="${tags}"$'\n'"${IMAGE_REPOSITORY}:latest"
           fi
 
-      - name: Setup SSH agent for private dependencies
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VK_PRIVATE_DEPLOY_KEY }}
+          {
+            echo 'tags<<EOF'
+            printf '%s\n' "$tags"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Setup Docker Buildx
+      - name: 配置 QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: 配置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Tencent Cloud CCR
+      - name: 登录 GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.TENCENT_REGISTRY }}
-          username: ${{ secrets.TENCENT_REGISTRY_USERNAME }}
-          password: ${{ secrets.TENCENT_REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install source dependencies for make metadata
-        working-directory: source
-        run: pnpm install
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          push: true
+          tags: ${{ steps.image-tags.outputs.tags }}
+          build-args: ${{ join(matrix.build_args, '\n') }}
 
-      - name: Build, push, and update deployment state
+  update-state:
+    needs:
+      - prepare
+      - build
+    if: ${{ needs.prepare.outputs.has_services == 'true' && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 更新部署状态并提交
+        env:
+          RELEASE_MATRIX: ${{ needs.prepare.outputs.matrix }}
         run: |
           set -euo pipefail
-          IFS=',' read -ra services <<< "${TARGET_SERVICES}"
-          for raw in "${services[@]}"; do
-            service="$(echo "$raw" | xargs)"
-            case "$service" in
-              vibe-kanban-remote)
-                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-remote"
-                (cd source && make push-remote \
-                  REMOTE_PLATFORM='linux/amd64' \
-                  REMOTE_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}" \
-                  VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL}")
-                ;;
-              vibe-kanban-relay)
-                image_repo="ccr.ccs.tencentyun.com/vino/vibe-kanban-relay"
-                (cd source && make push-relay \
-                  REMOTE_PLATFORM='linux/amd64' \
-                  RELAY_IMAGE_TAGS="-t ${image_repo}:${SOURCE_SHA}")
-                ;;
-              *)
-                echo "Unsupported service: $service" >&2
-                exit 1
-                ;;
-            esac
-            TARGET_FILE="environments/${TARGET_ENVIRONMENT}/${service}/deployment.yaml" \
-            DEPLOY_ENV="${TARGET_ENVIRONMENT}" \
-            SERVICE_NAME="$service" \
-            SOURCE_REF="${SOURCE_REF}" \
-            SOURCE_SHA="${SOURCE_SHA}" \
-            IMAGE_REPOSITORY="$image_repo" \
-            IMAGE_TAG="${SOURCE_SHA}" \
-            ./scripts/update-deployment-state.sh
-          done
+          ./scripts/commit-deployment-state-with-retry.sh
 
-      - name: Commit deployment state updates
+  release-npm-assets:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.has_npm == 'true' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.npm_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 设置 Node 与 pnpm
+        uses: ./source/.github/actions/setup-node
+        env:
+          NODE_VERSION: 24
+          PNPM_VERSION: 10.13.1
+
+      - name: 升级 npm 以满足 Trusted Publishing 要求
+        shell: bash
+        run: npm install -g npm@11.5.1
+
+      - name: 打印 Linux Runner 信息
+        if: ${{ matrix.target_os == 'linux' }}
+        shell: bash
         run: |
-          git config user.email 'action@github.com'
-          git config user.name 'GitHub Action'
-          if git diff --quiet; then
-            echo 'No deployment state changes to commit.'
-            exit 0
-          fi
-          git add environments
-          git commit -m "chore: update deployment state for ${TARGET_ENVIRONMENT} (${SOURCE_SHA})"
-          git push
+          set -euo pipefail
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+          echo "RUNNER_NAME=${RUNNER_NAME}"
+          echo '--- uname -a ---'
+          uname -a
+          echo '--- lscpu ---'
+          lscpu
+          echo '--- free -h ---'
+          free -h
+          echo '--- df -h ---'
+          df -h
+          echo '--- node --version ---'
+          node --version
+          echo '--- npm --version ---'
+          npm --version
+
+      - name: 打印 Windows Runner 信息
+        if: ${{ matrix.target_os == 'win32' }}
+        shell: pwsh
+        run: |
+          Write-Host "RUNNER_OS=$env:RUNNER_OS"
+          Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
+          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+          Write-Host '--- Get-ComputerInfo ---'
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer
+          Write-Host '--- Get-CimInstance Win32_OperatingSystem ---'
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture, TotalVisibleMemorySize
+          Write-Host '--- Get-CimInstance Win32_Processor ---'
+          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
+          Write-Host '--- Get-PSDrive -PSProvider FileSystem ---'
+          Get-PSDrive -PSProvider FileSystem
+          Write-Host '--- node --version ---'
+          node --version
+          Write-Host '--- npm --version ---'
+          npm --version
+
+      - name: 打印 macOS Runner 信息
+        if: ${{ matrix.target_os == 'darwin' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+          echo "RUNNER_NAME=${RUNNER_NAME}"
+          echo '--- sw_vers ---'
+          sw_vers
+          echo '--- CPU ---'
+          sysctl -n machdep.cpu.brand_string
+          echo '--- CPU 核心数 ---'
+          sysctl -n hw.ncpu
+          echo '--- 内存字节数 ---'
+          sysctl -n hw.memsize
+          echo '--- df -h ---'
+          df -h
+          echo '--- node --version ---'
+          node --version
+          echo '--- npm --version ---'
+          npm --version
+
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2025-12-04
+
+      - name: 构建 npm 平台产物
+        shell: bash
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          BUILD_ONLY: true
+          TARGET_OS: ${{ matrix.target_os }}
+          TARGET_ARCH: ${{ matrix.target_arch }}
+          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+          BUILD_ARTIFACT_DIR: ../../npm-artifacts/${{ matrix.target }}
+          SOURCE_TAG: ${{ env.SOURCE_TAG }}
+          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
+          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
+          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
+          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
+          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
+        run: |
+          ./scripts/release-npm-package.sh source
+
+      - name: 上传 npm 平台产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-${{ matrix.target }}
+          path: npm-artifacts/${{ matrix.target }}
+          if-no-files-found: error
+
+  release-github-release:
+    needs:
+      - prepare
+      - release-npm-assets
+    if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-npm-assets.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 下载 npm 平台产物
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          pattern: npm-package-*
+
+      - name: 生成 GitHub Release tag
+        id: release-tag
+        run: |
+          set -euo pipefail
+          echo "tag=${NPM_PACKAGE_NAME##*/}-${SOURCE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: 创建 GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.release-tag.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ steps.release-tag.outputs.tag }}" \
+            --notes "npm release assets for ${NPM_PACKAGE_NAME}@${SOURCE_TAG}" \
+            --verify-tag || true
+
+      - name: 上传 GitHub Release 资产
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          find release-artifacts -type f | sort > /tmp/release-assets.txt
+          while IFS= read -r asset; do
+            gh release upload "${{ steps.release-tag.outputs.tag }}" "$asset" \
+              --repo "${{ github.repository }}" \
+              --clobber
+          done < /tmp/release-assets.txt
+
+  release-npm:
+    needs:
+      - prepare
+      - release-github-release
+    if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-github-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 检出源仓库
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 设置 Node 与 pnpm
+        uses: ./source/.github/actions/setup-node
+        env:
+          NODE_VERSION: 24
+          PNPM_VERSION: 10.13.1
+
+      - name: 升级 npm 以满足 Trusted Publishing 要求
+        run: npm install -g npm@11.5.1
+
+      - name: 通过 Trusted Publishing 发布轻量 npm 包
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          SOURCE_TAG: ${{ env.SOURCE_TAG }}
+          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
+          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
+          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
+          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
+          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
+        run: |
+          ./scripts/release-npm-package.sh source

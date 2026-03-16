@@ -1,0 +1,19 @@
+{
+  "project": "vibe-kanban",
+  "services": [
+    {
+      "service": "vibe-kanban-remote",
+      "image_repository": "ghcr.io/tianweilong/vibe-kanban-remote",
+      "context": "source",
+      "dockerfile": "crates/remote/Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "vibe-kanban-relay",
+      "image_repository": "ghcr.io/tianweilong/vibe-kanban-relay",
+      "context": "source",
+      "dockerfile": "crates/relay-tunnel/Dockerfile",
+      "build_args": []
+    }
+  ]
+}

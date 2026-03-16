@@ -1,0 +1,4 @@
+services:
+  remote:
+    image: ghcr.io/tianweilong/vibe-kanban-remote:CHANGE_ME_TAG
+    restart: unless-stopped

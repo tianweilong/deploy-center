@@ -1,4 +1,4 @@
-name: Validate Deployment Config
+name: 校验部署配置
 
 on:
   push:
@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Validate deployment YAML
+      - name: 校验部署 YAML
         run: ruby -e "require 'yaml'; Dir['**/*.yaml'].each { |f| YAML.load_file(f); puts f }"
-      - name: Validate helper scripts
-        run: bash -n scripts/update-deployment-state.sh
+      - name: 校验辅助脚本
+        run: |
+          bash -n scripts/update-deployment-state.sh
+          bash -n scripts/commit-deployment-state-with-retry.sh

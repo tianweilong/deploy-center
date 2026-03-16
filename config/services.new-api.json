@@ -1,0 +1,12 @@
+{
+  "project": "new-api",
+  "services": [
+    {
+      "service": "new-api",
+      "image_repository": "ghcr.io/tianweilong/new-api",
+      "context": "source",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    }
+  ]
+}
