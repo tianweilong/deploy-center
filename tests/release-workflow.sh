@@ -84,11 +84,6 @@ grep -q 'hw.ncpu' "$file"
 grep -q 'hw.memsize' "$file"
 grep -q 'node --version' "$file"
 grep -q 'npm --version' "$file"
-grep -q 'TMPDIR="$(cygpath -m "$RUNNER_TEMP")"' "$file"
-grep -q 'export TMPDIR TMP TEMP' "$file"
-grep -q '修补 Windows 源仓库打包脚本路径兼容性' "$file"
-grep -q 'working-directory: source' "$file"
-grep -q 'windows_source_path="$(cygpath -w "$temp_dir/$output_name")"' "$file"
 if ! grep -q 'NODE_OPTIONS: --max-old-space-size=6144' "$file"; then
   echo 'npm 发布步骤需要显式设置 NODE_OPTIONS 以抬高 Node 堆上限。' >&2
   exit 1
@@ -108,3 +103,11 @@ grep -q './scripts/commit-deployment-state-with-retry.sh' "$file"
 ! grep -q 'make push-' "$file"
 ! grep -q 'target_environment' "$file"
 ! grep -Eq '^[[:space:]]+environment:' "$file"
+if grep -q 'TMPDIR="$(cygpath -m "$RUNNER_TEMP")"' "$file"; then
+  echo 'workflow 不应再依赖 TMPDIR 的 Windows 路径 workaround。' >&2
+  exit 1
+fi
+if grep -q '修补 Windows 源仓库打包脚本路径兼容性' "$file"; then
+  echo 'workflow 不应再修改源仓库 local-build.sh。' >&2
+  exit 1
+fi

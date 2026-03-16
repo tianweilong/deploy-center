@@ -375,35 +375,6 @@ jobs:
         with:
           toolchain: nightly-2025-12-04
 
-      - name: 修补 Windows 源仓库打包脚本路径兼容性
-        if: ${{ matrix.target_os == 'win32' }}
-        shell: bash
-        working-directory: source
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const path = 'local-build.sh';
-          const oldText = `  if [ "$OS" = "windows" ]; then
-            powershell.exe -NoProfile -Command \\
-              "Compress-Archive -Path '$temp_dir/$output_name' -DestinationPath '$archive_path' -Force" \\
-              >/dev/null
-          } else
-          `;
-          const newText = `  if [ "$OS" = "windows" ]; then
-            local windows_source_path
-            windows_source_path="$(cygpath -w "$temp_dir/$output_name")"
-            powershell.exe -NoProfile -Command \\
-              "Compress-Archive -Path '$windows_source_path' -DestinationPath '$archive_path' -Force" \\
-              >/dev/null
-          } else
-          `;
-          const content = fs.readFileSync(path, 'utf8');
-          if (!content.includes(oldText)) {
-            throw new Error('未找到可修补的 Windows 压缩路径片段。');
-          }
-          fs.writeFileSync(path, content.replace(oldText, newText), 'utf8');
-          NODE
-
       - name: 构建 npm 平台产物
         shell: bash
         env:
@@ -419,14 +390,7 @@ jobs:
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-        run: |
-          if [ "${TARGET_OS}" = 'win32' ]; then
-            TMPDIR="$(cygpath -m "$RUNNER_TEMP")"
-            export TMPDIR TMP TEMP
-            TMP="$TMPDIR"
-            TEMP="$TMPDIR"
-          fi
-          ./scripts/release-npm-package.sh source
+        run: ./scripts/release-npm-package.sh source
 
       - name: 上传 npm 平台产物
         uses: actions/upload-artifact@v4
