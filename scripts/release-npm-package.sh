@@ -161,7 +161,7 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
   checksum_file="${artifact_dir}/${release_package_key}-${SOURCE_TAG}-checksums.txt"
   (
     cd "${artifact_dir}"
-    shasum -a 256 "${asset_name}" > "$(basename "${checksum_file}")"
+    node -e "const fs = require('fs'); const crypto = require('crypto'); const filePath = process.argv[1]; const hash = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex'); process.stdout.write(hash + '  ' + filePath + '\\n');" "${asset_name}" > "$(basename "${checksum_file}")"
   )
   echo "仅构建 ${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown} Release 资产目录：${artifact_dir}"
   exit 0
