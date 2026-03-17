@@ -191,7 +191,6 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
   fi
 
   contract_json=$(node "${SCRIPT_DIR}/validate-npm-build-contract.mjs" "${source_dist_dir}")
-  contract_json_file="${artifact_dir:-${BUILD_ARTIFACT_DIR:-.release-artifacts/${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}}}/contract.json"
 
   artifact_dir="${BUILD_ARTIFACT_DIR:-.release-artifacts/${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}}"
   asset_name="${release_tag}-${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}.${ARCHIVE_EXT}"
@@ -199,9 +198,7 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
   stage_dir="${artifact_dir}/stage"
   rm -rf "${artifact_dir}"
   mkdir -p "${artifact_dir}"
-  contract_json_file="${artifact_dir}/contract.json"
-  printf '%s' "${contract_json}" > "${contract_json_file}"
-  manifest_files=$(node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(data.files.join('\n'));" "${contract_json_file}")
+  manifest_files=$(node "${SCRIPT_DIR}/validate-npm-build-contract.mjs" --print-files "${source_dist_dir}")
   copy_manifest_files_to_stage "${source_dist_dir}" "${stage_dir}" "${manifest_files}"
   create_platform_archive "${stage_dir}" "${archive_path}" "${ARCHIVE_EXT}"
   checksum_file="${artifact_dir}/${release_package_key}-${SOURCE_TAG}-checksums.txt"
