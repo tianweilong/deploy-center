@@ -50,9 +50,15 @@ grep -q 'SCRIPT_DIR=' "$script"
 grep -q 'node "${SCRIPT_DIR}/validate-npm-build-contract.mjs"' "$script"
 grep -q 'manifest.json' "$script"
 grep -q 'manifest_files' "$script"
-grep -q 'JSON.parse(process.argv\[1\])' "$script"
+grep -q 'contract_json_file=' "$script"
+grep -q 'printf '\''%s'\'' "${contract_json}" > "${contract_json_file}"' "$script"
+grep -q 'JSON.parse(fs.readFileSync(process.argv\[1\], '\''utf8'\''))' "$script"
 if grep -q "fs.readFileSync(0, 'utf8')" "$script"; then
   echo 'manifest_files 不应再通过 stdin 管道解析 contract_json。' >&2
+  exit 1
+fi
+if grep -q 'JSON.parse(process.argv\[1\])' "$script"; then
+  echo 'manifest_files 不应直接通过命令行 JSON 参数解析 contract_json。' >&2
   exit 1
 fi
 grep -q 'checksums.txt' "$script"
