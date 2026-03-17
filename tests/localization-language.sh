@@ -36,10 +36,7 @@ auto_reject=(
   '.github/workflows/release-service.yml:Setup Docker Buildx'
   '.github/workflows/release-service.yml:Login to GitHub Container Registry'
   '.github/workflows/release-service.yml:Build and push image'
-  '.github/workflows/release-service.yml:Update deployment state files'
-  '.github/workflows/release-service.yml:Commit deployment state updates'
   '.github/workflows/release-service.yml:Missing required release input\.'
-  'scripts/update-deployment-state.sh:Missing deployment descriptor:'
   'scripts/prepare-release-matrix.rb:Unsupported service:'
   'scripts/prepare-release-matrix.rb:Missing required build arg env:'
 )

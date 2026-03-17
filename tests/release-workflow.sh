@@ -17,7 +17,7 @@ if grep -q '\[self-hosted, macOS, ARM64\]' "$file"; then
   echo 'npm 发布不应再使用自托管 macOS runner。' >&2
   exit 1
 fi
-test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 5
+test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 4
 grep -q 'docker/setup-qemu-action@v3' "$file"
 grep -q 'docker/build-push-action@v6' "$file"
 grep -q 'registry: ghcr.io' "$file"
@@ -71,7 +71,7 @@ fi
 grep -q 'github.repository' "$file"
 grep -q './scripts/release-npm-package.sh source' "$file"
 grep -q 'node-version: 24' "$file"
-test "$(grep -c '^      - uses: actions/checkout@v6$' "$file")" -eq 6
+test "$(grep -c '^      - uses: actions/checkout@v6$' "$file")" -eq 5
 grep -q 'uses: ./.github/actions/checkout-source' "$file"
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$file"
 grep -q 'uses: ./.github/actions/print-runner-info' "$file"
@@ -100,7 +100,8 @@ if grep -q -- '--provenance' "$file"; then
   echo 'workflow 不应手工传递 --provenance，交给 npm 自动处理。' >&2
   exit 1
 fi
-grep -q './scripts/commit-deployment-state-with-retry.sh' "$file"
+! grep -q 'update-state:' "$file"
+! grep -q './scripts/commit-deployment-state-with-retry.sh' "$file"
 ! grep -q '^          git push$' "$file"
 ! grep -q 'TENCENT_REGISTRY' "$file"
 ! grep -q 'ccr.ccs.tencentyun.com' "$file"

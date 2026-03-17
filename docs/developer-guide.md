@@ -65,9 +65,7 @@
 ### 脚本与测试
 
 - `scripts/prepare-release-matrix.rb`：根据目标服务列表和环境变量生成 GitHub Actions matrix JSON。
-- `scripts/update-deployment-state.sh`：更新 `deployment.yaml` 中的 `source` 和 `image` 字段。
-- `scripts/commit-deployment-state-with-retry.sh`：基于最新 `origin/main` 重算部署状态，并在 push 冲突时自动重试提交。
-- `tests/*.sh`：以 Shell 形式覆盖关键工作流约束、矩阵生成和状态回写逻辑。
+- `tests/*.sh`：以 Shell 形式覆盖关键工作流约束、矩阵生成和镜像发布链路。
 
 ### 未来代理协议
 
@@ -239,23 +237,15 @@ GitHub Release tag 规则固定为：
 
 这套规则允许 fork 基于同一个上游版本做多次发布，同时不需要把根 `package.json` 改成每次发布后的版本。
 
-### 4.5 update-state 阶段
+### 4.5 发布状态
 
-`update-state` 任务继续运行在 GitHub 托管的 `ubuntu-latest` Runner 上。
+`release-service` 现在不再包含 `update-state` 阶段，也不会在发布成功后自动回写 `environments/*/deployment.yaml`。
 
-如果 `build` 全部成功，`update-state` 任务会：
+这意味着：
 
-1. 读取 `prepare` 阶段输出的矩阵。
-2. 针对每个服务调用 `scripts/update-deployment-state.sh`。
-3. 将 `deployment.yaml` 中的以下字段更新为最新期望状态：
-   - `source.ref`
-   - `source.sha`
-   - `image.repository`
-   - `image.tag`
-4. 调用 `scripts/commit-deployment-state-with-retry.sh`，基于最新 `origin/main` 重算并提交状态。
-5. 若 push 因并发更新失败，则重新同步远端、再次生成状态并在上限内重试。
-
-也就是说，本仓库中的 Git 提交本身就是部署状态审计轨迹的一部分。
+1. 服务镜像发布与 npm 发布链路仍由工作流负责。
+2. `deployment.yaml` 仍可作为仓库内的状态描述文件存在，但不再由该工作流自动维护。
+3. 如果后续仍需要回写部署状态，应通过独立流程或新的自动化方案实现，而不是在当前 workflow 中串行提交。
 
 ## 5. 服务状态模型与文件约定
 
@@ -333,8 +323,6 @@ GitHub Release tag 规则固定为：
 
 ```bash
 ruby -e "require 'yaml'; Dir['**/*.yaml'].each { |f| YAML.load_file(f); puts f }"
-bash -n scripts/update-deployment-state.sh
-bash -n scripts/commit-deployment-state-with-retry.sh
 ```
 
 对应 GitHub Actions 中的 `validate-deployment-config.yml`。
@@ -343,18 +331,14 @@ bash -n scripts/commit-deployment-state-with-retry.sh
 
 ```bash
 bash tests/prepare-release-matrix.sh
-bash tests/commit-deployment-state-with-retry.sh
 bash tests/release-workflow.sh
-bash tests/update-deployment-state.sh
 bash tests/ghcr-references.sh
 ```
 
 测试覆盖点分别是：
 
 - 构建矩阵生成是否正确
-- 部署状态提交流程在并发 push 冲突下是否会基于最新远端状态重算并重试
 - 发布工作流是否仍符合 GHCR 方案
-- 部署状态更新脚本是否正确改写 YAML
 - 仓库中是否仍错误残留旧镜像仓库引用
 
 ### 7.3 本地生成发布矩阵
@@ -367,33 +351,6 @@ ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json
 ```
 
 这个命令很适合在改动 `config/services.vibe-kanban.json` 后快速确认输出是否符合预期。
-
-### 7.4 本地模拟部署状态更新
-
-```bash
-SERVICE_NAME='vibe-kanban-remote' \
-SOURCE_REF='refs/tags/v1.2.3' \
-SOURCE_SHA='abc1234' \
-IMAGE_REPOSITORY='ghcr.io/tianweilong/vibe-kanban-remote' \
-IMAGE_TAG='v1.2.3' \
-./scripts/update-deployment-state.sh
-```
-
-这个脚本只负责改写单个 `deployment.yaml`，不负责 Git 提交、push 或并发冲突处理。
-
-建议在临时目录或测试夹具中验证，不要直接对真实环境文件做试验性覆盖。
-
-如果你要本地验证“基于最新 `origin/main` 重算并重试提交”的完整行为，应改为使用：
-
-```bash
-RELEASE_MATRIX='{"include":[{"service":"vibe-kanban-remote","image_repository":"ghcr.io/tianweilong/vibe-kanban-remote","tag":"v1.2.3"}]}' \
-SOURCE_REF='refs/tags/v1.2.3' \
-SOURCE_SHA='abc1234' \
-SOURCE_TAG='v1.2.3' \
-./scripts/commit-deployment-state-with-retry.sh
-```
-
-该脚本会在每次尝试前先同步最新 `origin/main`，重新执行状态写入，并仅在 `git push` 失败时重试。
 
 ## 8. GitHub 配置与外部依赖
 
@@ -458,11 +415,9 @@ SOURCE_TAG='v1.2.3' \
 
 如果你修改了 `deployment.yaml` 字段结构，至少要同步考虑：
 
-- `scripts/update-deployment-state.sh` 是否仍能正确写入
-- `tests/update-deployment-state.sh` 是否需要扩展断言
 - `agents/webhook/protocol.md` 是否仍与状态模型一致
 
-这是最容易产生“工作流能跑，但代理无法消费”的地方。
+这是最容易产生“仓库文件变了，但代理无法消费”的地方。
 
 ## 10. 当前边界与维护建议
 
