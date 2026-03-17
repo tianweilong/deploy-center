@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@vino.tian/myte",
+  "packageVersion": "0.1.2",
+  "platform": "windows-x64",
+  "targetOs": "linux",
+  "targetArch": "x64",
+  "generatedAt": "2026-03-17T08:00:00.000Z",
+  "files": [
+    "myte"
+  ]
+}
