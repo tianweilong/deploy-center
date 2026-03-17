@@ -68,8 +68,6 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    env:
-      VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       npm_matrix: ${{ steps.matrix.outputs.npm_matrix }}
@@ -172,7 +170,6 @@ jobs:
 
           matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
             SOURCE_TAG="${SOURCE_TAG}" \
-            VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
             ruby scripts/prepare-release-matrix.rb "${{ steps.targets.outputs.service_config_path }}")
           {
             echo 'matrix<<EOF'
@@ -244,22 +241,6 @@ jobs:
           push: true
           tags: ${{ steps.image-tags.outputs.tags }}
           build-args: ${{ join(matrix.build_args, '\n') }}
-
-  update-state:
-    needs:
-      - prepare
-      - build
-    if: ${{ needs.prepare.outputs.has_services == 'true' && needs.build.result == 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: 更新部署状态并提交
-        env:
-          RELEASE_MATRIX: ${{ needs.prepare.outputs.matrix }}
-        run: |
-          set -euo pipefail
-          ./scripts/commit-deployment-state-with-retry.sh
 
   release-npm-assets:
     needs: prepare
