@@ -81,6 +81,21 @@ create_platform_archive() {
   exit 1
 }
 
+copy_manifest_files_to_stage() {
+  local source_dir="$1"
+  local stage_dir="$2"
+  local manifest_files="$3"
+
+  mkdir -p "${stage_dir}"
+  cp "${source_dir}/manifest.json" "${stage_dir}/manifest.json"
+
+  while IFS= read -r relative_path; do
+    [ -n "${relative_path}" ] || continue
+    mkdir -p "${stage_dir}/$(dirname "${relative_path}")"
+    cp "${source_dir}/${relative_path}" "${stage_dir}/${relative_path}"
+  done <<< "${manifest_files}"
+}
+
 package_json_path="${NPM_PACKAGE_DIR%/}/package.json"
 actual_package_name=$(node -p "require('./${package_json_path}').name")
 
@@ -173,12 +188,17 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
     exit 1
   fi
 
+  contract_json=$(node ./scripts/validate-npm-build-contract.mjs "${source_dist_dir}")
+  manifest_files=$(printf '%s' "${contract_json}" | node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); process.stdout.write(data.files.join('\n'));")
+
   artifact_dir="${BUILD_ARTIFACT_DIR:-.release-artifacts/${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}}"
   asset_name="${release_tag}-${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}.${ARCHIVE_EXT}"
   archive_path="${artifact_dir}/${asset_name}"
+  stage_dir="${artifact_dir}/stage"
   rm -rf "${artifact_dir}"
   mkdir -p "${artifact_dir}"
-  create_platform_archive "${source_dist_dir}" "${archive_path}" "${ARCHIVE_EXT}"
+  copy_manifest_files_to_stage "${source_dist_dir}" "${stage_dir}" "${manifest_files}"
+  create_platform_archive "${stage_dir}" "${archive_path}" "${ARCHIVE_EXT}"
   checksum_file="${artifact_dir}/${release_package_key}-${SOURCE_TAG}-checksums.txt"
   (
     cd "${artifact_dir}"
