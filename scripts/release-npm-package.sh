@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 SOURCE_DIR="${1:-source}"
 BUILD_ONLY="${BUILD_ONLY:-false}"
 PUBLISH_ONLY="${PUBLISH_ONLY:-false}"
@@ -188,7 +190,7 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
     exit 1
   fi
 
-  contract_json=$(node ./scripts/validate-npm-build-contract.mjs "${source_dist_dir}")
+  contract_json=$(node "${SCRIPT_DIR}/validate-npm-build-contract.mjs" "${source_dist_dir}")
   manifest_files=$(printf '%s' "${contract_json}" | node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); process.stdout.write(data.files.join('\n'));")
 
   artifact_dir="${BUILD_ARTIFACT_DIR:-.release-artifacts/${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}}"
