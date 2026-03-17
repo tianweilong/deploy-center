@@ -54,6 +54,7 @@ grep -q 'npm_matrix' "$file"
 grep -q 'release-npm-assets:' "$file"
 grep -q 'release-github-release:' "$file"
 grep -q 'release-npm:' "$file"
+grep -q 'linux-arm64' "$file"
 grep -q 'windows-latest' "$file"
 grep -q 'darwin-arm64' "$file"
 grep -q 'upload-artifact' "$file"
@@ -61,6 +62,8 @@ grep -q 'download-artifact' "$file"
 grep -q 'BUILD_ONLY: true' "$file"
 grep -q 'gh release create' "$file"
 grep -q 'gh release upload' "$file"
+grep -q '创建 GitHub Release' "$file"
+grep -q '上传 GitHub Release 资产' "$file"
 if grep -q -- '--verify-tag' "$file"; then
   echo 'GitHub Release 资产发布不应强依赖仓库内已存在同名 tag。' >&2
   exit 1
