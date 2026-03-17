@@ -50,6 +50,11 @@ grep -q 'SCRIPT_DIR=' "$script"
 grep -q 'node "${SCRIPT_DIR}/validate-npm-build-contract.mjs"' "$script"
 grep -q 'manifest.json' "$script"
 grep -q 'manifest_files' "$script"
+grep -q 'JSON.parse(process.argv\[1\])' "$script"
+if grep -q "fs.readFileSync(0, 'utf8')" "$script"; then
+  echo 'manifest_files 不应再通过 stdin 管道解析 contract_json。' >&2
+  exit 1
+fi
 grep -q 'checksums.txt' "$script"
 grep -q "createHash('sha256')" "$script"
 grep -q 'pnpm run build:npx' "$script"

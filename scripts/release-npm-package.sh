@@ -191,7 +191,7 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
   fi
 
   contract_json=$(node "${SCRIPT_DIR}/validate-npm-build-contract.mjs" "${source_dist_dir}")
-  manifest_files=$(printf '%s' "${contract_json}" | node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); process.stdout.write(data.files.join('\n'));")
+  manifest_files=$(node -e "const data = JSON.parse(process.argv[1]); process.stdout.write(data.files.join('\n'));" "${contract_json}")
 
   artifact_dir="${BUILD_ARTIFACT_DIR:-.release-artifacts/${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}}"
   asset_name="${release_tag}-${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown}.${ARCHIVE_EXT}"
