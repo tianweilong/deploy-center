@@ -9,6 +9,7 @@ grep -q 'npm_package_name' "$workflow"
 grep -q 'release-npm-assets:' "$workflow"
 grep -q 'release-github-release:' "$workflow"
 grep -q 'release-npm:' "$workflow"
+grep -q 'linux-arm64' "$workflow"
 grep -q 'windows-latest' "$workflow"
 grep -q 'darwin-arm64' "$workflow"
 grep -q 'node-version: 24' "$workflow"
@@ -47,6 +48,10 @@ grep -q 'resolve_source_path' "$script"
 grep -q 'checksums.txt' "$script"
 grep -q "createHash('sha256')" "$script"
 grep -q 'pnpm run build:npx' "$script"
+if grep -q 'cp "${PACKAGE_FILE}" "${artifact_dir}/${asset_name}"' "$script"; then
+  echo 'BUILD_ONLY 不应再把 npm tgz 直接当作平台 release 资产。' >&2
+  exit 1
+fi
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"
 grep -q 'id-token: write' "$workflow"
 grep -q 'gh release create' "$workflow"
@@ -56,6 +61,10 @@ if grep -q -- '--verify-tag' "$workflow"; then
   exit 1
 fi
 grep -q 'npm publish' "$script"
+if grep -q 'cp -R "${artifact_package_dir}/." "${package_dir}/"' "$script"; then
+  echo '不应再把平台 package 内容合并回轻量 npm 包。' >&2
+  exit 1
+fi
 if grep -q 'NPM_RELEASE_PACKAGE_KEY' "$script"; then
   echo '脚本不应再依赖 NPM_RELEASE_PACKAGE_KEY。' >&2
   exit 1

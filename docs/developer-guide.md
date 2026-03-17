@@ -147,6 +147,7 @@
 当前首版支持的平台目标为：
 
 - `linux-x64`
+- `linux-arm64`
 - `win32-x64`
 - `darwin-arm64`
 
@@ -169,6 +170,7 @@ GitHub Release tag 规则固定为：
 典型资产文件名为：
 
 - `<package-key>-vX.Y.Z-linux-x64.tar.gz`
+- `<package-key>-vX.Y.Z-linux-arm64.tar.gz`
 - `<package-key>-vX.Y.Z-win32-x64.zip`
 - `<package-key>-vX.Y.Z-darwin-arm64.tar.gz`
 - `<package-key>-vX.Y.Z-checksums.txt`
@@ -186,7 +188,7 @@ GitHub Release tag 规则固定为：
    - `base_patch_offset`：基于 `npm_base_version_file` 和 `npm_version_patch_factor` 校验映射关系并计算发布版本
 5. 执行 `pnpm i --frozen-lockfile`。
 6. 带上 `TARGET_OS` 与 `TARGET_ARCH` 执行 `pnpm run build:npx`。
-7. 生成带 `package-key` 与平台后缀的压缩包，并输出 `checksums.txt`。
+7. 将 `npx-cli/dist/<platform>` 打成对应平台 bundle，生成带 `package-key` 与平台后缀的压缩包，并输出 `checksums.txt`。
 8. 将这些文件作为 workflow artifact 上传。
 
 #### 4.4.2 release-github-release
@@ -204,7 +206,7 @@ GitHub Release tag 规则固定为：
 1. 检出应用源仓库到 `source/`。
 2. 设置 Node.js 与 pnpm，并升级 npm 以满足 Trusted Publishing 要求。
 3. 发布一个轻量 npm 包，不再把多平台资产重新打进 npm tarball。
-4. 用户在 `npm install -g` 时，由安装脚本识别平台，并只下载当前平台对应的一个 GitHub Release 资产。
+4. 用户在 `npm install -g` 或首次通过轻量 CLI 运行时，由安装脚本识别平台，并只下载当前平台对应的一个 GitHub Release bundle。
 
 ### 4.4.4 npm 版本策略
 

@@ -159,7 +159,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ steps.targets.outputs.has_npm }}" = 'true' ]; then
-            npm_matrix='{"include":[{"runner":"ubuntu-latest","target":"linux-x64","target_os":"linux","target_arch":"x64","archive_ext":"tar.gz"},{"runner":"windows-latest","target":"win32-x64","target_os":"win32","target_arch":"x64","archive_ext":"zip"},{"runner":"macos-15","target":"darwin-arm64","target_os":"darwin","target_arch":"arm64","archive_ext":"tar.gz"}]}'
+            npm_matrix='{"include":[{"runner":"ubuntu-latest","target":"linux-x64","target_os":"linux","target_arch":"x64","archive_ext":"tar.gz"},{"runner":"ubuntu-latest","target":"linux-arm64","target_os":"linux","target_arch":"arm64","archive_ext":"tar.gz"},{"runner":"windows-latest","target":"win32-x64","target_os":"win32","target_arch":"x64","archive_ext":"zip"},{"runner":"macos-15","target":"darwin-arm64","target_os":"darwin","target_arch":"arm64","archive_ext":"tar.gz"}]}'
           else
             npm_matrix='{"include":[]}'
           fi
