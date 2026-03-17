@@ -82,12 +82,20 @@ export async function validateBuildContract(platformDir) {
 }
 
 async function main() {
-  const platformDir = process.argv[2];
+  const args = process.argv.slice(2);
+  const printFilesOnly = args[0] === '--print-files';
+  const platformDir = printFilesOnly ? args[1] : args[0];
   if (!platformDir) {
-    throw new Error('用法：node scripts/validate-npm-build-contract.mjs <platform-dir>');
+    throw new Error(
+      '用法：node scripts/validate-npm-build-contract.mjs [--print-files] <platform-dir>',
+    );
   }
 
   const result = await validateBuildContract(platformDir);
+  if (printFilesOnly) {
+    process.stdout.write(`${result.files.join('\n')}\n`);
+    return;
+  }
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
