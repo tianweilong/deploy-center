@@ -68,8 +68,6 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    env:
-      VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL: ${{ vars.VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL }}
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       npm_matrix: ${{ steps.matrix.outputs.npm_matrix }}
@@ -172,7 +170,6 @@ jobs:
 
           matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
             SOURCE_TAG="${SOURCE_TAG}" \
-            VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL="${VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL:-}" \
             ruby scripts/prepare-release-matrix.rb "${{ steps.targets.outputs.service_config_path }}")
           {
             echo 'matrix<<EOF'

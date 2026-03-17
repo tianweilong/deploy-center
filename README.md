@@ -1,10 +1,10 @@
 # 部署中心
 
-一个私有的、多服务部署配置与统一发布编排仓库。
+一个私有的、多服务发布编排仓库。
 
-该仓库保存 `vibe-kanban` 相关服务的部署状态、镜像构建矩阵，以及正式发布工作流。当前它同时负责两类发布目标：
+该仓库保存 `vibe-kanban` 相关服务的镜像构建配置，以及正式发布工作流。当前它同时负责两类发布目标：
 
-- `vibe-kanban-remote` 与 `vibe-kanban-relay` 的镜像构建与部署状态回写
+- `vibe-kanban-remote` 与 `vibe-kanban-relay` 的镜像构建
 - `@vino.tian/vibe-kanban` 的 npm 打包与发布
 
 ## GitHub 配置
@@ -16,10 +16,6 @@
 必需的工作流权限：
 
 - `GITHUB_TOKEN` 需要具备 `packages: write`
-
-必需的仓库变量：
-
-- `VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL`
 
 必需的部署主机凭据：
 
@@ -95,7 +91,7 @@
 - `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`
 - `NODE_AUTH_TOKEN=${NPM_TOKEN} npm publish --access public`
 
-最终用户通过以下命令启动本地服务：
+最终用户通过以下命令启动本地 CLI：
 
 ```bash
 npx @vino.tian/vibe-kanban
