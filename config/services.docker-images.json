@@ -1,0 +1,19 @@
+{
+  "project": "docker-images",
+  "services": [
+    {
+      "service": "redis6",
+      "image_repository": "ghcr.io/tianweilong/redis6",
+      "context": "source/images/redis6",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "redis7",
+      "image_repository": "ghcr.io/tianweilong/redis7",
+      "context": "source/images/redis7",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    }
+  ]
+}

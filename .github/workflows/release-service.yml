@@ -116,23 +116,13 @@ jobs:
           for raw_target in "${targets[@]}"; do
             target=$(printf '%s' "${raw_target}" | xargs)
             case "${target}" in
-              remote)
-                target_services="${target_services},vibe-kanban-remote"
-                ;;
-              relay)
-                target_services="${target_services},vibe-kanban-relay"
-                ;;
-              new-api)
-                target_services="${target_services},new-api"
-                ;;
               npm)
                 has_npm=true
                 ;;
               '')
                 ;;
               *)
-                echo "不支持的发布目标：${target}" >&2
-                exit 1
+                target_services="${target_services},${target}"
                 ;;
             esac
           done

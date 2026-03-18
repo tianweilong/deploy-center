@@ -8,6 +8,7 @@ files=(
   docs/rollout.md
   config/services.vibe-kanban.json
   config/services.new-api.json
+  config/services.docker-images.json
 )
 
 for file in "${files[@]}"; do
@@ -20,6 +21,8 @@ done
 grep -q 'ghcr.io/tianweilong/vibe-kanban-remote' config/services.vibe-kanban.json
 grep -q 'ghcr.io/tianweilong/vibe-kanban-relay' config/services.vibe-kanban.json
 grep -q 'ghcr.io/tianweilong/new-api' config/services.new-api.json
+grep -q 'ghcr.io/tianweilong/redis6' config/services.docker-images.json
+grep -q 'ghcr.io/tianweilong/redis7' config/services.docker-images.json
 
 grep -q 'GITHUB_TOKEN' README.md
 grep -q 'read:packages' README.md

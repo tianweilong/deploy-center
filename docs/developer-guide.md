@@ -38,6 +38,7 @@
 
 - `config/services.vibe-kanban.json`：`vibe-kanban` 服务镜像的构建配置。
 - `config/services.new-api.json`：`new-api` 服务镜像的构建配置。
+- `config/services.docker-images.json`：公共基础镜像仓库的构建配置样例。
 - `services/registry.yaml`：服务登记信息；当前不是发布工作流的直接输入，但可作为服务清单参考。
 
 ### 脚本与测试
@@ -85,6 +86,11 @@
 2. 解析 `release_targets`。
 3. 生成服务镜像矩阵。
 4. 生成 npm 多平台矩阵。
+
+其中 `release_targets` 当前的规则是：
+
+- `npm` 仍然表示启用 npm 发布链路
+- 其他非空值一律按 service 名处理，并在对应的 `config/services.<repo>.json` 中校验
 
 ### 4.3 build 阶段
 
@@ -146,6 +152,13 @@
 - `build_args`
 
 `platforms` 是可选字段；未配置时回退到 workflow 默认值。
+
+对于使用 `images/<目录名>/Dockerfile` 结构的公共镜像仓库，也建议遵循同一套配置格式：
+
+- `service`：直接使用目录名，例如 `redis6`
+- `context`：写成 `source/images/<目录名>`
+- `dockerfile`：固定为 `Dockerfile`
+- `image_repository`：对应 GHCR 目标地址
 
 ### 5.2 `services/registry.yaml`
 
@@ -225,6 +238,13 @@ ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json
 3. 若新服务有额外 build args，确保仓库变量也已创建。
 4. 补充或更新 `tests/*.sh`。
 5. 运行基础校验与回归测试。
+
+对于公共镜像仓库，推荐额外约定：
+
+1. 源仓库维护 `images/<目录名>/Dockerfile` 结构。
+2. 源仓库在 `main` 分支变更后自行识别变更目录。
+3. 源仓库把变更目录名列表直接作为 `release_targets` 传给 `deploy-center`。
+4. 若没有任何 `images/` 目录变化，则不触发发布。
 
 ### 8.2 修改镜像构建逻辑
 

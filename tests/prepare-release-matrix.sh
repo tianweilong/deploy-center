@@ -83,3 +83,35 @@ ruby -rjson -e '
   item = data.fetch("include").fetch(0)
   raise "服务显式平台覆盖失效" unless item.fetch("platforms") == "linux/arm64"
 ' <<< "$override_output"
+
+docker_images_output=$( \
+  TARGET_SERVICES='redis6,redis7' \
+  SOURCE_TAG='latest' \
+  DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
+  ruby scripts/prepare-release-matrix.rb config/services.docker-images.json
+)
+
+ruby -rjson -e '
+  data = JSON.parse(STDIN.read)
+  include_items = data.fetch("include")
+  raise "docker-images 应返回两个服务" unless include_items.size == 2
+
+  redis6 = include_items.find { |item| item.fetch("service") == "redis6" }
+  redis7 = include_items.find { |item| item.fetch("service") == "redis7" }
+
+  raise "缺少 redis6 服务" unless redis6
+  raise "缺少 redis7 服务" unless redis7
+
+  raise "redis6 镜像仓库错误" unless redis6.fetch("image_repository") == "ghcr.io/tianweilong/redis6"
+  raise "redis7 镜像仓库错误" unless redis7.fetch("image_repository") == "ghcr.io/tianweilong/redis7"
+  raise "redis6 构建上下文错误" unless redis6.fetch("context") == "source/images/redis6"
+  raise "redis7 构建上下文错误" unless redis7.fetch("context") == "source/images/redis7"
+  raise "redis6 Dockerfile 错误" unless redis6.fetch("dockerfile") == "Dockerfile"
+  raise "redis7 Dockerfile 错误" unless redis7.fetch("dockerfile") == "Dockerfile"
+  raise "redis6 平台配置错误" unless redis6.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "redis7 平台配置错误" unless redis7.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "redis6 不应需要构建参数" unless redis6.fetch("build_args") == []
+  raise "redis7 不应需要构建参数" unless redis7.fetch("build_args") == []
+  raise "redis6 镜像标签错误" unless redis6.fetch("tag") == "latest"
+  raise "redis7 镜像标签错误" unless redis7.fetch("tag") == "latest"
+' <<< "$docker_images_output"
