@@ -138,3 +138,31 @@ ruby -rjson -e '
   raise "image-a 镜像标签错误" unless image_a.fetch("tag") == "latest"
   raise "image-b 镜像标签错误" unless image_b.fetch("tag") == "latest"
 ' <<< "$docker_images_output"
+
+docker_mirror_output=$( \
+  TARGET_SERVICES='postgres16,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden' \
+  SOURCE_TAG='latest' \
+  DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
+  ruby scripts/prepare-release-matrix.rb config/services.docker-mirror.json
+)
+
+ruby -rjson -e '
+  data = JSON.parse(STDIN.read)
+  include_items = data.fetch("include")
+  raise "docker-mirror 应返回六个服务" unless include_items.size == 6
+
+  bitwarden = include_items.find { |item| item.fetch("service") == "bitwarden" }
+  postgres16 = include_items.find { |item| item.fetch("service") == "postgres16" }
+
+  raise "缺少 bitwarden 服务" unless bitwarden
+  raise "缺少 postgres16 服务" unless postgres16
+
+  raise "bitwarden 镜像仓库错误" unless bitwarden.fetch("image_repository") == "ghcr.io/tianweilong/bitwarden"
+  raise "bitwarden 构建上下文错误" unless bitwarden.fetch("context") == "source/images/bitwarden"
+  raise "bitwarden Dockerfile 错误" unless bitwarden.fetch("dockerfile") == "Dockerfile"
+  raise "bitwarden 平台配置错误" unless bitwarden.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "bitwarden 不应需要构建参数" unless bitwarden.fetch("build_args") == []
+  raise "bitwarden 镜像标签错误" unless bitwarden.fetch("tag") == "latest"
+
+  raise "postgres16 镜像仓库错误" unless postgres16.fetch("image_repository") == "ghcr.io/tianweilong/postgres16"
+' <<< "$docker_mirror_output"
