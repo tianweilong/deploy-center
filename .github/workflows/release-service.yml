@@ -291,7 +291,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: npm-package-${{ matrix.target }}
-          path: npm-artifacts/${{ matrix.target }}
+          path: |
+            npm-artifacts/${{ matrix.target }}/*.${{ matrix.archive_ext }}
+            npm-artifacts/${{ matrix.target }}/*-checksums.txt
           if-no-files-found: error
 
   release-github-release:

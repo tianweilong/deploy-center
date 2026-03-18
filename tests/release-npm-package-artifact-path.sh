@@ -10,9 +10,10 @@ trap 'rm -rf "$tmp_root"' EXIT
 workspace_root="$tmp_root/workspace"
 source_root="$workspace_root/source"
 artifact_root="$workspace_root/npm-artifacts/linux-x64"
+fixture_source="$repo_root/tests/fixtures/release-npm-package-source"
 
 mkdir -p "$workspace_root"
-cp -R "$repo_root/../myte" "$source_root"
+cp -R "$fixture_source" "$source_root"
 rm -rf "$source_root/npm-artifacts"
 
 (
@@ -36,6 +37,11 @@ fi
 
 if [ -d "$source_root/npm-artifacts" ]; then
   echo "平台产物目录不应落在 source 子目录内。" >&2
+  exit 1
+fi
+
+if [ -d "$artifact_root/stage" ]; then
+  echo "平台产物目录不应残留 stage 临时目录。" >&2
   exit 1
 fi
 

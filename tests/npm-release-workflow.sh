@@ -73,10 +73,24 @@ fi
 grep -q 'checksums.txt' "$script"
 grep -q "createHash('sha256')" "$script"
 grep -q 'pnpm run build:npx' "$script"
+if grep -q 'path: npm-artifacts/${{ matrix.target }}' "$workflow"; then
+  echo 'workflow 不应上传整个 npm-artifacts 目录，否则会把 stage 原始文件一并带进 release。' >&2
+  exit 1
+fi
+grep -q 'path: |' "$workflow"
+grep -Fq 'npm-artifacts/${{ matrix.target }}/*.${{ matrix.archive_ext }}' "$workflow"
+grep -Fq 'npm-artifacts/${{ matrix.target }}/*-checksums.txt' "$workflow"
 if grep -q 'cp "${PACKAGE_FILE}" "${artifact_dir}/${asset_name}"' "$script"; then
   echo 'BUILD_ONLY 不应再把 npm tgz 直接当作平台 release 资产。' >&2
   exit 1
 fi
+if grep -Fq "Compress-Archive -Path '\$source_dir_windows\\\\*'" "$script"; then
+  echo 'Windows 压缩不应继续使用绝对路径加通配符的旧实现。' >&2
+  exit 1
+fi
+grep -q 'Set-Location -LiteralPath' "$script"
+grep -q 'Get-ChildItem -Force' "$script"
+grep -q 'Compress-Archive -LiteralPath' "$script"
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"
 grep -q 'id-token: write' "$workflow"
 grep -q 'gh release create' "$workflow"
