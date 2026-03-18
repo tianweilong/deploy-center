@@ -96,6 +96,10 @@ if grep -q 'Compress-Archive' "$common_script"; then
   echo 'Windows 压缩不应继续依赖 Compress-Archive，需改用更稳定的 Zip 实现。' >&2
   exit 1
 fi
+if grep -q 'tar -a -cf' "$common_script"; then
+  echo 'Windows zip 打包不应继续依赖 tar -a，需使用可控的 ZipFile 实现。' >&2
+  exit 1
+fi
 grep -q 'System.IO.Compression.FileSystem' "$common_script"
 grep -q 'ZipFile' "$common_script"
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"

@@ -46,43 +46,16 @@ create_platform_archive() {
       exit 1
     fi
 
-    if ! tar -a -cf "${archive_path}" -C "${source_dir}" . >/dev/null 2>&1; then
-      local source_dir_windows
-      local archive_path_windows
-      source_dir_windows="$(cygpath -w "$source_dir")"
-      archive_path_windows="$(cygpath -w "$archive_path")"
-      SOURCE_DIR_WINDOWS="${source_dir_windows}" ARCHIVE_PATH_WINDOWS="${archive_path_windows}" \
-        powershell.exe -NoProfile -Command \
-        '$ErrorActionPreference = "Stop"; Add-Type -AssemblyName "System.IO.Compression.FileSystem"; $sourceDir = $env:SOURCE_DIR_WINDOWS; $archivePath = $env:ARCHIVE_PATH_WINDOWS; if ([System.IO.Directory]::GetFileSystemEntries($sourceDir).Count -eq 0) { throw "待压缩目录为空。" }; [System.IO.Compression.ZipFile]::CreateFromDirectory($sourceDir, $archivePath)' \
-        >/dev/null
-    fi
+    local source_dir_windows
+    local archive_path_windows
+    source_dir_windows="$(cygpath -w "$source_dir")"
+    archive_path_windows="$(cygpath -w "$archive_path")"
+    SOURCE_DIR_WINDOWS="${source_dir_windows}" ARCHIVE_PATH_WINDOWS="${archive_path_windows}" \
+      powershell.exe -NoProfile -Command \
+      '$ErrorActionPreference = "Stop"; Add-Type -AssemblyName "System.IO.Compression.FileSystem"; $sourceDir = $env:SOURCE_DIR_WINDOWS; $archivePath = $env:ARCHIVE_PATH_WINDOWS; $files = @(Get-ChildItem -LiteralPath $sourceDir -Recurse -File); if ($files.Count -eq 0) { throw "待压缩目录为空。" }; if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }; $archive = [System.IO.Compression.ZipFile]::Open($archivePath, [System.IO.Compression.ZipArchiveMode]::Create); try { foreach ($file in $files) { $relativePath = [System.IO.Path]::GetRelativePath($sourceDir, $file.FullName); $entryName = $relativePath -replace "\\", "/"; [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $file.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null } } finally { $archive.Dispose() }' \
+      >/dev/null
 
-    if tar -tf "${archive_path}" >/dev/null 2>&1; then
-      local archive_listing
-      archive_listing="$(tar -tf "${archive_path}")"
-
-      if ! (
-        printf '%s\n' "${archive_listing}" | grep -Fxq './manifest.json' ||
-          printf '%s\n' "${archive_listing}" | grep -Fxq 'manifest.json'
-      ); then
-        echo 'zip 产物缺少 manifest.json。' >&2
-        exit 1
-      fi
-
-      local archive_file_count
-      archive_file_count="$(
-        printf '%s\n' "${archive_listing}" \
-          | grep -vE '/$' \
-          | grep -vFx '.' \
-          | grep -vFx './' \
-          | wc -l \
-          | tr -d ' '
-      )"
-      if [ "${archive_file_count}" -lt 2 ]; then
-        echo 'zip 产物仅包含 manifest.json，缺少平台文件。' >&2
-        exit 1
-      fi
-    fi
+    validate_zip_archive_contents "${archive_path}"
     return
   fi
 
@@ -93,6 +66,70 @@ create_platform_archive() {
 
   echo "不支持的 archive 扩展名：${archive_ext}" >&2
   exit 1
+}
+
+validate_zip_archive_contents() {
+  local archive_path="$1"
+
+  node -e '
+    const fs = require("node:fs");
+
+    const archivePath = process.argv[1];
+    const buffer = fs.readFileSync(archivePath);
+    const eocdSignature = 0x06054b50;
+    const centralDirectorySignature = 0x02014b50;
+    const searchStart = Math.max(0, buffer.length - 65557);
+
+    let eocdOffset = -1;
+    for (let index = buffer.length - 22; index >= searchStart; index -= 1) {
+      if (buffer.readUInt32LE(index) === eocdSignature) {
+        eocdOffset = index;
+        break;
+      }
+    }
+
+    if (eocdOffset === -1) {
+      console.error("zip 产物缺少可识别的中央目录。");
+      process.exit(1);
+    }
+
+    const entryCount = buffer.readUInt16LE(eocdOffset + 10);
+    const centralDirectoryOffset = buffer.readUInt32LE(eocdOffset + 16);
+    const entries = [];
+
+    let cursor = centralDirectoryOffset;
+    for (let entryIndex = 0; entryIndex < entryCount; entryIndex += 1) {
+      if (buffer.readUInt32LE(cursor) !== centralDirectorySignature) {
+        console.error("zip 产物中央目录条目损坏。");
+        process.exit(1);
+      }
+
+      const fileNameLength = buffer.readUInt16LE(cursor + 28);
+      const extraFieldLength = buffer.readUInt16LE(cursor + 30);
+      const fileCommentLength = buffer.readUInt16LE(cursor + 32);
+      const fileName = buffer.slice(cursor + 46, cursor + 46 + fileNameLength).toString("utf8");
+
+      entries.push(fileName);
+      cursor += 46 + fileNameLength + extraFieldLength + fileCommentLength;
+    }
+
+    const normalizedEntries = entries.map((entry) => {
+      if (entry === "./") {
+        return ".";
+      }
+      return entry.replace(/^\.\//, "");
+    });
+    if (!normalizedEntries.includes("manifest.json")) {
+      console.error("zip 产物缺少 manifest.json。");
+      process.exit(1);
+    }
+
+    const fileEntries = normalizedEntries.filter((entry) => entry !== "" && entry !== "." && entry !== "./" && !entry.endsWith("/"));
+    if (fileEntries.length < 2) {
+      console.error("zip 产物仅包含 manifest.json，缺少平台文件。");
+      process.exit(1);
+    }
+  ' "${archive_path}"
 }
 
 copy_manifest_files_to_stage() {
