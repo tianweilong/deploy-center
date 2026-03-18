@@ -1,0 +1,47 @@
+{
+  "project": "docker-mirror",
+  "services": [
+    {
+      "service": "postgres16",
+      "image_repository": "ghcr.io/tianweilong/postgres16",
+      "context": "source/images/postgres16",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "azure-storage-azurite",
+      "image_repository": "ghcr.io/tianweilong/azure-storage-azurite",
+      "context": "source/images/azure-storage-azurite",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "azure-cli",
+      "image_repository": "ghcr.io/tianweilong/azure-cli",
+      "context": "source/images/azure-cli",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "electricsql-electric",
+      "image_repository": "ghcr.io/tianweilong/electricsql-electric",
+      "context": "source/images/electricsql-electric",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "nginx",
+      "image_repository": "ghcr.io/tianweilong/nginx",
+      "context": "source/images/nginx",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "bitwarden",
+      "image_repository": "ghcr.io/tianweilong/bitwarden",
+      "context": "source/images/bitwarden",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    }
+  ]
+}
