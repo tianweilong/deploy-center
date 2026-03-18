@@ -9,6 +9,11 @@ prepare_script='scripts/prepare-npm-publish-input.sh'
 assets_script='scripts/build-npm-release-assets.sh'
 publish_script='scripts/publish-npm-package.sh'
 
+if [ -e "$legacy_script" ]; then
+  echo '旧的混合 npm 发布脚本应已删除。' >&2
+  exit 1
+fi
+
 grep -q 'npm_package_name' "$workflow"
 grep -q 'release-npm-assets:' "$workflow"
 grep -q 'prepare-npm-publish-input:' "$workflow"
@@ -50,10 +55,6 @@ test -f "$publish_script"
 test -x "$prepare_script"
 test -x "$assets_script"
 test -x "$publish_script"
-if grep -q 'make npx-dev-build' "$legacy_script"; then
-  echo '不应依赖 make npx-dev-build。' >&2
-  exit 1
-fi
 grep -q 'npm-release-common.sh' "$prepare_script"
 grep -q 'npm-release-common.sh' "$assets_script"
 grep -q 'npm-release-common.sh' "$publish_script"
