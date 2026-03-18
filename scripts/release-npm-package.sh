@@ -69,7 +69,7 @@ create_platform_archive() {
     source_dir_windows="$(cygpath -w "$source_dir")"
     archive_path_windows="$(cygpath -w "$archive_path")"
     powershell.exe -NoProfile -Command \
-      "Compress-Archive -Path '$source_dir_windows\\*' -DestinationPath '$archive_path_windows' -Force" \
+      "\$ErrorActionPreference = 'Stop'; Set-Location -LiteralPath '$source_dir_windows'; \$items = @(Get-ChildItem -Force | ForEach-Object { \$_.FullName }); if (\$items.Count -eq 0) { throw '待压缩目录为空。' }; Compress-Archive -LiteralPath \$items -DestinationPath '$archive_path_windows' -Force" \
       >/dev/null
     return
   fi
@@ -208,6 +208,7 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
     cd "${artifact_dir}"
     node -e "const fs = require('fs'); const crypto = require('crypto'); const filePath = process.argv[1]; const hash = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex'); process.stdout.write(hash + '  ' + filePath + '\\n');" "${asset_name}" > "$(basename "${checksum_file}")"
   )
+  rm -rf "${stage_dir}"
   echo "仅构建 ${TARGET_OS:-unknown}-${TARGET_ARCH:-unknown} Release 资产目录：${artifact_dir}"
   exit 0
 fi
