@@ -41,14 +41,48 @@ create_platform_archive() {
   rm -f "${archive_path}"
 
   if [ "${archive_ext}" = 'zip' ]; then
-    local source_dir_windows
-    local archive_path_windows
-    source_dir_windows="$(cygpath -w "$source_dir")"
-    archive_path_windows="$(cygpath -w "$archive_path")"
-    SOURCE_DIR_WINDOWS="${source_dir_windows}" ARCHIVE_PATH_WINDOWS="${archive_path_windows}" \
-      powershell.exe -NoProfile -Command \
-      '$ErrorActionPreference = "Stop"; Add-Type -AssemblyName "System.IO.Compression.FileSystem"; $sourceDir = $env:SOURCE_DIR_WINDOWS; $archivePath = $env:ARCHIVE_PATH_WINDOWS; if ([System.IO.Directory]::GetFileSystemEntries($sourceDir).Count -eq 0) { throw "待压缩目录为空。" }; [System.IO.Compression.ZipFile]::CreateFromDirectory($sourceDir, $archivePath)' \
-      >/dev/null
+    if ! find "${source_dir}" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+      echo '待压缩目录为空。' >&2
+      exit 1
+    fi
+
+    if ! tar -a -cf "${archive_path}" -C "${source_dir}" . >/dev/null 2>&1; then
+      local source_dir_windows
+      local archive_path_windows
+      source_dir_windows="$(cygpath -w "$source_dir")"
+      archive_path_windows="$(cygpath -w "$archive_path")"
+      SOURCE_DIR_WINDOWS="${source_dir_windows}" ARCHIVE_PATH_WINDOWS="${archive_path_windows}" \
+        powershell.exe -NoProfile -Command \
+        '$ErrorActionPreference = "Stop"; Add-Type -AssemblyName "System.IO.Compression.FileSystem"; $sourceDir = $env:SOURCE_DIR_WINDOWS; $archivePath = $env:ARCHIVE_PATH_WINDOWS; if ([System.IO.Directory]::GetFileSystemEntries($sourceDir).Count -eq 0) { throw "待压缩目录为空。" }; [System.IO.Compression.ZipFile]::CreateFromDirectory($sourceDir, $archivePath)' \
+        >/dev/null
+    fi
+
+    if tar -tf "${archive_path}" >/dev/null 2>&1; then
+      local archive_listing
+      archive_listing="$(tar -tf "${archive_path}")"
+
+      if ! (
+        printf '%s\n' "${archive_listing}" | grep -Fxq './manifest.json' ||
+          printf '%s\n' "${archive_listing}" | grep -Fxq 'manifest.json'
+      ); then
+        echo 'zip 产物缺少 manifest.json。' >&2
+        exit 1
+      fi
+
+      local archive_file_count
+      archive_file_count="$(
+        printf '%s\n' "${archive_listing}" \
+          | grep -vE '/$' \
+          | grep -vFx '.' \
+          | grep -vFx './' \
+          | wc -l \
+          | tr -d ' '
+      )"
+      if [ "${archive_file_count}" -lt 2 ]; then
+        echo 'zip 产物仅包含 manifest.json，缺少平台文件。' >&2
+        exit 1
+      fi
+    fi
     return
   fi
 
