@@ -47,6 +47,9 @@ fi
 test -f "$prepare_script"
 test -f "$assets_script"
 test -f "$publish_script"
+test -x "$prepare_script"
+test -x "$assets_script"
+test -x "$publish_script"
 if grep -q 'make npx-dev-build' "$legacy_script"; then
   echo '不应依赖 make npx-dev-build。' >&2
   exit 1
