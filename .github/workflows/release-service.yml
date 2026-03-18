@@ -115,26 +115,14 @@ jobs:
           IFS=',' read -r -a targets <<< "${RELEASE_TARGETS}"
           for raw_target in "${targets[@]}"; do
             target=$(printf '%s' "${raw_target}" | xargs)
-            case "${target}" in
-              remote)
-                target_services="${target_services},vibe-kanban-remote"
-                ;;
-              relay)
-                target_services="${target_services},vibe-kanban-relay"
-                ;;
-              new-api)
-                target_services="${target_services},new-api"
-                ;;
-              npm)
-                has_npm=true
-                ;;
-              '')
-                ;;
-              *)
-                echo "不支持的发布目标：${target}" >&2
-                exit 1
-                ;;
-            esac
+            if [ "${target}" = 'npm' ]; then
+              has_npm=true
+              continue
+            fi
+
+            if [ -n "${target}" ]; then
+              target_services="${target_services},${target}"
+            fi
           done
 
           target_services=$(printf '%s' "${target_services}" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd, -)

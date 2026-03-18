@@ -86,6 +86,11 @@
 3. 生成服务镜像矩阵。
 4. 生成 npm 多平台矩阵。
 
+其中 `release_targets` 当前的规则是：
+
+- `npm` 仍然表示启用 npm 发布链路
+- 其他非空值一律按 service 名处理，并在对应的 `config/services.<repo>.json` 中校验
+
 ### 4.3 build 阶段
 
 `build` 任务负责构建并推送服务镜像，主要过程如下：
@@ -146,6 +151,13 @@
 - `build_args`
 
 `platforms` 是可选字段；未配置时回退到 workflow 默认值。
+
+对于使用 `images/<目录名>/Dockerfile` 结构的公共镜像仓库，也建议单独新增一份 `config/services.<repo>.json`，并遵循同一套配置格式：
+
+- `service`：直接使用目录名，例如 `image-a`
+- `context`：写成 `source/images/<目录名>`
+- `dockerfile`：固定为 `Dockerfile`
+- `image_repository`：对应 GHCR 目标地址
 
 ### 5.2 `services/registry.yaml`
 
@@ -225,6 +237,13 @@ ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json
 3. 若新服务有额外 build args，确保仓库变量也已创建。
 4. 补充或更新 `tests/*.sh`。
 5. 运行基础校验与回归测试。
+
+对于公共镜像仓库，推荐额外约定：
+
+1. 源仓库维护 `images/<目录名>/Dockerfile` 结构。
+2. 源仓库在 `main` 分支变更后自行识别变更目录。
+3. 源仓库把变更目录名列表直接作为 `release_targets` 传给 `deploy-center`。
+4. 若没有任何 `images/` 目录变化，则不触发发布。
 
 ### 8.2 修改镜像构建逻辑
 

@@ -53,7 +53,8 @@ ruby -rjson -e '
 ' <<< "$new_api_output"
 
 override_config=$(mktemp)
-trap 'rm -f "$override_config"' EXIT
+docker_images_config=$(mktemp)
+trap 'rm -f "$override_config" "$docker_images_config"' EXIT
 
 cat > "$override_config" <<'EOF'
 {
@@ -83,3 +84,57 @@ ruby -rjson -e '
   item = data.fetch("include").fetch(0)
   raise "服务显式平台覆盖失效" unless item.fetch("platforms") == "linux/arm64"
 ' <<< "$override_output"
+
+cat > "$docker_images_config" <<'EOF'
+{
+  "project": "docker-images",
+  "services": [
+    {
+      "service": "image-a",
+      "image_repository": "ghcr.io/tianweilong/image-a",
+      "context": "source/images/image-a",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "image-b",
+      "image_repository": "ghcr.io/tianweilong/image-b",
+      "context": "source/images/image-b",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    }
+  ]
+}
+EOF
+
+docker_images_output=$( \
+  TARGET_SERVICES='image-a,image-b' \
+  SOURCE_TAG='latest' \
+  DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
+  ruby scripts/prepare-release-matrix.rb "$docker_images_config"
+)
+
+ruby -rjson -e '
+  data = JSON.parse(STDIN.read)
+  include_items = data.fetch("include")
+  raise "docker-images 应返回两个服务" unless include_items.size == 2
+
+  image_a = include_items.find { |item| item.fetch("service") == "image-a" }
+  image_b = include_items.find { |item| item.fetch("service") == "image-b" }
+
+  raise "缺少 image-a 服务" unless image_a
+  raise "缺少 image-b 服务" unless image_b
+
+  raise "image-a 镜像仓库错误" unless image_a.fetch("image_repository") == "ghcr.io/tianweilong/image-a"
+  raise "image-b 镜像仓库错误" unless image_b.fetch("image_repository") == "ghcr.io/tianweilong/image-b"
+  raise "image-a 构建上下文错误" unless image_a.fetch("context") == "source/images/image-a"
+  raise "image-b 构建上下文错误" unless image_b.fetch("context") == "source/images/image-b"
+  raise "image-a Dockerfile 错误" unless image_a.fetch("dockerfile") == "Dockerfile"
+  raise "image-b Dockerfile 错误" unless image_b.fetch("dockerfile") == "Dockerfile"
+  raise "image-a 平台配置错误" unless image_a.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "image-b 平台配置错误" unless image_b.fetch("platforms") == "linux/amd64,linux/arm64"
+  raise "image-a 不应需要构建参数" unless image_a.fetch("build_args") == []
+  raise "image-b 不应需要构建参数" unless image_b.fetch("build_args") == []
+  raise "image-a 镜像标签错误" unless image_a.fetch("tag") == "latest"
+  raise "image-b 镜像标签错误" unless image_b.fetch("tag") == "latest"
+' <<< "$docker_images_output"
