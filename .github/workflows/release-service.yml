@@ -230,8 +230,67 @@ jobs:
           tags: ${{ steps.image-tags.outputs.tags }}
           build-args: ${{ join(matrix.build_args, '\n') }}
 
-  release-npm-assets:
+  prepare-npm-publish-input:
     needs: prepare
+    if: ${{ needs.prepare.outputs.has_npm == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/checkout-source
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 安装 Go
+        if: ${{ hashFiles('source/go.mod') != '' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: source/go.mod
+          cache: true
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: 24
+          pnpm-version: 10.13.1
+          lockfile-path: source/pnpm-lock.yaml
+          npm-version: 11.5.1
+
+      - uses: ./.github/actions/print-runner-info
+        with:
+          target-os: linux
+
+      - name: 安装 Rust 工具链
+        if: ${{ hashFiles('source/rust-toolchain.toml', 'source/rust-toolchain') != '' }}
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 准备 npm 发布输入
+        shell: bash
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          OUTPUT_DIR: ../npm-publish-input
+          SOURCE_TAG: ${{ env.SOURCE_TAG }}
+          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
+          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
+          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
+          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
+          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
+        run: ./scripts/prepare-npm-publish-input.sh source
+
+      - name: 上传 npm 发布输入
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-publish-input
+          path: npm-publish-input
+          if-no-files-found: error
+
+  release-npm-assets:
+    needs:
+      - prepare
+      - prepare-npm-publish-input
     if: ${{ needs.prepare.outputs.has_npm == 'true' }}
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -271,28 +330,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: 构建 npm 平台产物
-        if: ${{ matrix.target == 'linux-x64' }}
-        shell: bash
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-          OUTPUT_DIR: ../npm-publish-input
-          SOURCE_TAG: ${{ env.SOURCE_TAG }}
-          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
-          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
-          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
-          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
-          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-        run: ./scripts/prepare-npm-publish-input.sh source
-
-      - name: 上传 npm 发布输入
-        if: ${{ matrix.target == 'linux-x64' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-publish-input
-          path: npm-publish-input
-          if-no-files-found: error
-
-      - name: 构建 npm 平台产物
         shell: bash
         env:
           NODE_OPTIONS: --max-old-space-size=6144
@@ -321,6 +358,7 @@ jobs:
   release-github-release:
     needs:
       - prepare
+      - prepare-npm-publish-input
       - release-npm-assets
     if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-npm-assets.result == 'success' }}
     runs-on: ubuntu-latest
@@ -377,6 +415,7 @@ jobs:
   release-npm:
     needs:
       - prepare
+      - prepare-npm-publish-input
       - release-github-release
     if: ${{ needs.prepare.outputs.has_npm == 'true' && needs.release-github-release.result == 'success' }}
     runs-on: ubuntu-latest

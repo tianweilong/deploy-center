@@ -11,12 +11,17 @@ publish_script='scripts/publish-npm-package.sh'
 
 grep -q 'npm_package_name' "$workflow"
 grep -q 'release-npm-assets:' "$workflow"
+grep -q 'prepare-npm-publish-input:' "$workflow"
 grep -q 'release-github-release:' "$workflow"
 grep -q 'release-npm:' "$workflow"
 grep -q 'npm-publish-input' "$workflow"
 grep -q './scripts/prepare-npm-publish-input.sh source' "$workflow"
 grep -q './scripts/build-npm-release-assets.sh source' "$workflow"
 grep -q './scripts/publish-npm-package.sh' "$workflow"
+if grep -q "matrix.target == 'linux-x64'" "$workflow"; then
+  echo 'npm 发布输入不应依赖固定矩阵分支，应由独立 job 生成。' >&2
+  exit 1
+fi
 if grep -q 'release-npm-package.sh source' "$workflow"; then
   echo 'workflow 不应再直接调用旧的混合 npm 发布脚本。' >&2
   exit 1
@@ -25,7 +30,7 @@ grep -q 'linux-arm64' "$workflow"
 grep -q 'windows-latest' "$workflow"
 grep -q 'darwin-arm64' "$workflow"
 grep -q 'node-version: 24' "$workflow"
-test "$(grep -c '^      - uses: actions/checkout@v6$' "$workflow")" -eq 5
+test "$(grep -c '^      - uses: actions/checkout@v6$' "$workflow")" -eq 6
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$workflow"
 grep -q 'uses: ./.github/actions/checkout-source' "$workflow"
 grep -q 'actions/setup-go@v5' "$workflow"
