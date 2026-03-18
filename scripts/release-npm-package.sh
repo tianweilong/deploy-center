@@ -175,7 +175,9 @@ case "${NPM_VERSION_STRATEGY}" in
     ;;
 esac
 
-release_tag="${release_package_key}-${SOURCE_TAG}"
+release_meta_payload=$(node -e "process.stdout.write(JSON.stringify({ packageName: process.argv[1], publishVersion: process.argv[2], sourceTag: process.argv[3], distributionMode: process.argv[4], releaseRepository: process.argv[5] }))" "${actual_package_name}" "${PUBLISH_VERSION}" "${SOURCE_TAG}" 'github_release' 'tianweilong/deploy-center')
+release_meta_module_url=$(node -e "const { pathToFileURL } = require('node:url'); process.stdout.write(pathToFileURL(process.argv[1]).href);" "${SCRIPT_DIR}/release-meta.mjs")
+release_tag=$(node --input-type=module -e "const moduleUrl = process.argv[1]; const payload = JSON.parse(process.argv[2]); const { buildReleaseMeta } = await import(moduleUrl); process.stdout.write(buildReleaseMeta(payload).releaseTag);" "${release_meta_module_url}" "${release_meta_payload}")
 
 pnpm i --frozen-lockfile
 TARGET_OS="${TARGET_OS}" TARGET_ARCH="${TARGET_ARCH}" pnpm run build:npx
@@ -211,6 +213,7 @@ if [ "${BUILD_ONLY}" = 'true' ]; then
 fi
 
 cd "${NPM_PACKAGE_DIR}"
+node "${SCRIPT_DIR}/release-meta.mjs" write "release-meta.json" "${release_meta_payload}" >/dev/null
 npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version
 rm -f ./*.tgz
 npm pack
