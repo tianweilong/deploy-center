@@ -56,11 +56,13 @@ grep -q 'npm_matrix' "$file"
 grep -q 'release-npm-assets:' "$file"
 grep -q 'release-github-release:' "$file"
 grep -q 'release-npm:' "$file"
+grep -q 'npm-publish-input' "$file"
 grep -q 'linux-arm64' "$file"
 grep -q 'windows-latest' "$file"
 grep -q 'darwin-arm64' "$file"
 grep -q 'upload-artifact' "$file"
 grep -q 'download-artifact' "$file"
+grep -q '下载 npm 发布输入' "$file"
 grep -q 'BUILD_ONLY: true' "$file"
 grep -q 'gh release create' "$file"
 grep -q 'gh release upload' "$file"
@@ -71,7 +73,13 @@ if grep -q -- '--verify-tag' "$file"; then
   exit 1
 fi
 grep -q 'github.repository' "$file"
-grep -q './scripts/release-npm-package.sh source' "$file"
+grep -q './scripts/prepare-npm-publish-input.sh source' "$file"
+grep -q './scripts/build-npm-release-assets.sh source' "$file"
+grep -q './scripts/publish-npm-package.sh' "$file"
+if grep -q 'release-npm-package.sh source' "$file"; then
+  echo 'workflow 不应再直接调用旧的混合 npm 发布脚本。' >&2
+  exit 1
+fi
 grep -q 'node-version: 24' "$file"
 test "$(grep -c '^      - uses: actions/checkout@v6$' "$file")" -eq 5
 grep -q 'uses: ./.github/actions/checkout-source' "$file"

@@ -271,6 +271,28 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: 构建 npm 平台产物
+        if: ${{ matrix.target == 'linux-x64' }}
+        shell: bash
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          OUTPUT_DIR: ../npm-publish-input
+          SOURCE_TAG: ${{ env.SOURCE_TAG }}
+          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
+          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
+          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
+          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
+          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
+        run: ./scripts/prepare-npm-publish-input.sh source
+
+      - name: 上传 npm 发布输入
+        if: ${{ matrix.target == 'linux-x64' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-publish-input
+          path: npm-publish-input
+          if-no-files-found: error
+
+      - name: 构建 npm 平台产物
         shell: bash
         env:
           NODE_OPTIONS: --max-old-space-size=6144
@@ -285,7 +307,7 @@ jobs:
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-        run: ./scripts/release-npm-package.sh source
+        run: ./scripts/build-npm-release-assets.sh source
 
       - name: 上传 npm 平台产物
         uses: actions/upload-artifact@v4
@@ -376,14 +398,14 @@ jobs:
           lockfile-path: source/pnpm-lock.yaml
           npm-version: 11.5.1
 
+      - name: 下载 npm 发布输入
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-publish-input
+          path: npm-publish-input
+
       - name: 通过 Trusted Publishing 发布轻量 npm 包
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-          SOURCE_TAG: ${{ env.SOURCE_TAG }}
-          NPM_PACKAGE_NAME: ${{ env.NPM_PACKAGE_NAME }}
-          NPM_PACKAGE_DIR: ${{ env.NPM_PACKAGE_DIR }}
-          NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
-          NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
-          NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
         run: |
-          ./scripts/release-npm-package.sh source
+          ./scripts/publish-npm-package.sh npm-publish-input
