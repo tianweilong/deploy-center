@@ -45,8 +45,9 @@ create_platform_archive() {
     local archive_path_windows
     source_dir_windows="$(cygpath -w "$source_dir")"
     archive_path_windows="$(cygpath -w "$archive_path")"
-    powershell.exe -NoProfile -Command \
-      "\$ErrorActionPreference = 'Stop'; Set-Location -LiteralPath '$source_dir_windows'; \$items = @(Get-ChildItem -Force | ForEach-Object { \$_.FullName }); if (\$items.Count -eq 0) { throw '待压缩目录为空。' }; Compress-Archive -LiteralPath \$items -DestinationPath '$archive_path_windows' -Force" \
+    SOURCE_DIR_WINDOWS="${source_dir_windows}" ARCHIVE_PATH_WINDOWS="${archive_path_windows}" \
+      powershell.exe -NoProfile -Command \
+      '$ErrorActionPreference = "Stop"; Add-Type -AssemblyName "System.IO.Compression.FileSystem"; $sourceDir = $env:SOURCE_DIR_WINDOWS; $archivePath = $env:ARCHIVE_PATH_WINDOWS; if ([System.IO.Directory]::GetFileSystemEntries($sourceDir).Count -eq 0) { throw "待压缩目录为空。" }; [System.IO.Compression.ZipFile]::CreateFromDirectory($sourceDir, $archivePath)' \
       >/dev/null
     return
   fi

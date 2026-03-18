@@ -92,15 +92,12 @@ if grep -q 'release-npm-package.sh' "$publish_script"; then
   echo '发布脚本不应回退到旧混合脚本。' >&2
   exit 1
 fi
-if grep -Fq "Compress-Archive -Path '\$source_dir_windows\\\\*'" "$common_script"; then
-  echo 'Windows 压缩不应继续使用绝对路径加通配符的旧实现。' >&2
+if grep -q 'Compress-Archive' "$common_script"; then
+  echo 'Windows 压缩不应继续依赖 Compress-Archive，需改用更稳定的 Zip 实现。' >&2
   exit 1
 fi
-grep -q 'Set-Location -LiteralPath' "$common_script"
-grep -q 'Get-ChildItem -Force' "$common_script"
-grep -Fq '$items = @(' "$common_script"
-grep -Fq '$items.Count -eq 0' "$common_script"
-grep -q 'Compress-Archive -LiteralPath' "$common_script"
+grep -q 'System.IO.Compression.FileSystem' "$common_script"
+grep -q 'ZipFile' "$common_script"
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"
 grep -q 'id-token: write' "$workflow"
 grep -q 'gh release create' "$workflow"
