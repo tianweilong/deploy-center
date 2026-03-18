@@ -115,16 +115,14 @@ jobs:
           IFS=',' read -r -a targets <<< "${RELEASE_TARGETS}"
           for raw_target in "${targets[@]}"; do
             target=$(printf '%s' "${raw_target}" | xargs)
-            case "${target}" in
-              npm)
-                has_npm=true
-                ;;
-              '')
-                ;;
-              *)
-                target_services="${target_services},${target}"
-                ;;
-            esac
+            if [ "${target}" = 'npm' ]; then
+              has_npm=true
+              continue
+            fi
+
+            if [ -n "${target}" ]; then
+              target_services="${target_services},${target}"
+            fi
           done
 
           target_services=$(printf '%s' "${target_services}" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd, -)

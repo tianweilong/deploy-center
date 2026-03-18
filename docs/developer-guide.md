@@ -38,7 +38,6 @@
 
 - `config/services.vibe-kanban.json`：`vibe-kanban` 服务镜像的构建配置。
 - `config/services.new-api.json`：`new-api` 服务镜像的构建配置。
-- `config/services.docker-images.json`：公共基础镜像仓库的构建配置样例。
 - `services/registry.yaml`：服务登记信息；当前不是发布工作流的直接输入，但可作为服务清单参考。
 
 ### 脚本与测试
@@ -153,9 +152,9 @@
 
 `platforms` 是可选字段；未配置时回退到 workflow 默认值。
 
-对于使用 `images/<目录名>/Dockerfile` 结构的公共镜像仓库，也建议遵循同一套配置格式：
+对于使用 `images/<目录名>/Dockerfile` 结构的公共镜像仓库，也建议单独新增一份 `config/services.<repo>.json`，并遵循同一套配置格式：
 
-- `service`：直接使用目录名，例如 `redis6`
+- `service`：直接使用目录名，例如 `image-a`
 - `context`：写成 `source/images/<目录名>`
 - `dockerfile`：固定为 `Dockerfile`
 - `image_repository`：对应 GHCR 目标地址
