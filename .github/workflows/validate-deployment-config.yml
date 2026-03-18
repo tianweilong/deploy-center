@@ -15,5 +15,8 @@ jobs:
       - name: 校验发布辅助脚本
         run: |
           ruby -c scripts/prepare-release-matrix.rb
-          bash -n scripts/release-npm-package.sh
+          bash -n scripts/npm-release-common.sh
+          bash -n scripts/prepare-npm-publish-input.sh
+          bash -n scripts/build-npm-release-assets.sh
+          bash -n scripts/publish-npm-package.sh
           bash -n scripts/merge-release-checksums.sh

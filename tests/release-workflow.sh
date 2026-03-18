@@ -135,3 +135,7 @@ if grep -q 'uses: ./source/.github/actions/setup-node' "$file"; then
   echo 'workflow 不应再依赖源仓库自带的 setup-node action。' >&2
   exit 1
 fi
+if grep -q 'bash -n scripts/release-npm-package.sh' '.github/workflows/validate-deployment-config.yml'; then
+  echo '部署配置校验 workflow 不应再检查已删除的旧 npm 脚本。' >&2
+  exit 1
+fi

@@ -46,7 +46,7 @@ create_platform_archive() {
     source_dir_windows="$(cygpath -w "$source_dir")"
     archive_path_windows="$(cygpath -w "$archive_path")"
     powershell.exe -NoProfile -Command \
-      "\$ErrorActionPreference = 'Stop'; Set-Location -LiteralPath '$source_dir_windows'; \$items = Get-ChildItem -Force | ForEach-Object { \$_.FullName }; Compress-Archive -LiteralPath \$items -DestinationPath '$archive_path_windows' -Force" \
+      "\$ErrorActionPreference = 'Stop'; Set-Location -LiteralPath '$source_dir_windows'; \$items = @(Get-ChildItem -Force | ForEach-Object { \$_.FullName }); if (\$items.Count -eq 0) { throw '待压缩目录为空。' }; Compress-Archive -LiteralPath \$items -DestinationPath '$archive_path_windows' -Force" \
       >/dev/null
     return
   fi

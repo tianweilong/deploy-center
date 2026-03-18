@@ -46,5 +46,6 @@ checksum_file="${artifact_dir}/${RELEASE_PACKAGE_KEY}-${SOURCE_TAG}-checksums.tx
   cd "${artifact_dir}"
   node -e "const fs = require('fs'); const crypto = require('crypto'); const filePath = process.argv[1]; const hash = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex'); process.stdout.write(hash + '  ' + filePath + '\\n');" "${asset_name}" > "$(basename "${checksum_file}")"
 )
+rm -rf "${stage_dir}"
 
 echo "仅构建 ${TARGET_OS}-${TARGET_ARCH} Release 资产目录：${artifact_dir}"

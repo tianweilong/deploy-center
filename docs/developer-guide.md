@@ -47,7 +47,6 @@
 - `scripts/prepare-npm-publish-input.sh`：准备 `release-npm` 消费的发布输入目录。
 - `scripts/build-npm-release-assets.sh`：构建多平台 npm Release 资产与 checksum。
 - `scripts/publish-npm-package.sh`：消费发布输入目录并通过 Trusted Publishing 发布轻量 npm 包。
-- `scripts/release-npm-package.sh`：旧的兼容脚本入口，保留给历史测试和过渡场景。
 - `scripts/merge-release-checksums.sh`：合并多平台资产生成的校验文件。
 - `tests/*.sh`：覆盖工作流结构、矩阵生成、npm 产物和发布约束。
 
@@ -187,7 +186,6 @@ bash -n scripts/npm-release-common.sh
 bash -n scripts/prepare-npm-publish-input.sh
 bash -n scripts/build-npm-release-assets.sh
 bash -n scripts/publish-npm-package.sh
-bash -n scripts/release-npm-package.sh
 bash -n scripts/merge-release-checksums.sh
 ```
 
