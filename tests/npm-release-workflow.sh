@@ -97,6 +97,8 @@ if grep -Fq "Compress-Archive -Path '\$source_dir_windows\\\\*'" "$common_script
 fi
 grep -q 'Set-Location -LiteralPath' "$common_script"
 grep -q 'Get-ChildItem -Force' "$common_script"
+grep -Fq '$items = @(' "$common_script"
+grep -Fq '$items.Count -eq 0' "$common_script"
 grep -q 'Compress-Archive -LiteralPath' "$common_script"
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"
 grep -q 'id-token: write' "$workflow"
