@@ -17,7 +17,7 @@ if grep -q '\[self-hosted, macOS, ARM64\]' "$file"; then
   echo 'npm 发布不应再使用自托管 macOS runner。' >&2
   exit 1
 fi
-test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 4
+test "$(grep -c 'runs-on: ubuntu-latest' "$file")" -eq 5
 grep -q 'docker/setup-qemu-action@v3' "$file"
 grep -q 'docker/build-push-action@v6' "$file"
 grep -q 'registry: ghcr.io' "$file"
@@ -54,13 +54,16 @@ fi
 grep -q 'has_npm' "$file"
 grep -q 'npm_matrix' "$file"
 grep -q 'release-npm-assets:' "$file"
+grep -q 'prepare-npm-publish-input:' "$file"
 grep -q 'release-github-release:' "$file"
 grep -q 'release-npm:' "$file"
+grep -q 'npm-publish-input' "$file"
 grep -q 'linux-arm64' "$file"
 grep -q 'windows-latest' "$file"
 grep -q 'darwin-arm64' "$file"
 grep -q 'upload-artifact' "$file"
 grep -q 'download-artifact' "$file"
+grep -q '下载 npm 发布输入' "$file"
 grep -q 'BUILD_ONLY: true' "$file"
 grep -q 'gh release create' "$file"
 grep -q 'gh release upload' "$file"
@@ -71,9 +74,19 @@ if grep -q -- '--verify-tag' "$file"; then
   exit 1
 fi
 grep -q 'github.repository' "$file"
-grep -q './scripts/release-npm-package.sh source' "$file"
+grep -q './scripts/prepare-npm-publish-input.sh source' "$file"
+grep -q './scripts/build-npm-release-assets.sh source' "$file"
+grep -q './scripts/publish-npm-package.sh' "$file"
+if grep -q "matrix.target == 'linux-x64'" "$file"; then
+  echo 'npm 发布输入不应依赖固定矩阵分支，应由独立 job 生成。' >&2
+  exit 1
+fi
+if grep -q 'release-npm-package.sh source' "$file"; then
+  echo 'workflow 不应再直接调用旧的混合 npm 发布脚本。' >&2
+  exit 1
+fi
 grep -q 'node-version: 24' "$file"
-test "$(grep -c '^      - uses: actions/checkout@v6$' "$file")" -eq 5
+test "$(grep -c '^      - uses: actions/checkout@v6$' "$file")" -eq 6
 grep -q 'uses: ./.github/actions/checkout-source' "$file"
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$file"
 grep -q 'uses: ./.github/actions/print-runner-info' "$file"

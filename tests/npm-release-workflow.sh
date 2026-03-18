@@ -3,17 +3,34 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 workflow='.github/workflows/release-service.yml'
-script='scripts/release-npm-package.sh'
+legacy_script='scripts/release-npm-package.sh'
+common_script='scripts/npm-release-common.sh'
+prepare_script='scripts/prepare-npm-publish-input.sh'
+assets_script='scripts/build-npm-release-assets.sh'
+publish_script='scripts/publish-npm-package.sh'
 
 grep -q 'npm_package_name' "$workflow"
 grep -q 'release-npm-assets:' "$workflow"
+grep -q 'prepare-npm-publish-input:' "$workflow"
 grep -q 'release-github-release:' "$workflow"
 grep -q 'release-npm:' "$workflow"
+grep -q 'npm-publish-input' "$workflow"
+grep -q './scripts/prepare-npm-publish-input.sh source' "$workflow"
+grep -q './scripts/build-npm-release-assets.sh source' "$workflow"
+grep -q './scripts/publish-npm-package.sh' "$workflow"
+if grep -q "matrix.target == 'linux-x64'" "$workflow"; then
+  echo 'npm 发布输入不应依赖固定矩阵分支，应由独立 job 生成。' >&2
+  exit 1
+fi
+if grep -q 'release-npm-package.sh source' "$workflow"; then
+  echo 'workflow 不应再直接调用旧的混合 npm 发布脚本。' >&2
+  exit 1
+fi
 grep -q 'linux-arm64' "$workflow"
 grep -q 'windows-latest' "$workflow"
 grep -q 'darwin-arm64' "$workflow"
 grep -q 'node-version: 24' "$workflow"
-test "$(grep -c '^      - uses: actions/checkout@v6$' "$workflow")" -eq 5
+test "$(grep -c '^      - uses: actions/checkout@v6$' "$workflow")" -eq 6
 grep -q 'uses: ./.github/actions/setup-node-pnpm' "$workflow"
 grep -q 'uses: ./.github/actions/checkout-source' "$workflow"
 grep -q 'actions/setup-go@v5' "$workflow"
@@ -27,52 +44,39 @@ if grep -q 'toolchain: nightly-' "$workflow"; then
   echo 'Rust 工具链版本不应在 workflow 中写死，应由源仓库标准文件决定。' >&2
   exit 1
 fi
-if grep -q 'make npx-dev-build' "$script"; then
+test -f "$prepare_script"
+test -f "$assets_script"
+test -f "$publish_script"
+if grep -q 'make npx-dev-build' "$legacy_script"; then
   echo '不应依赖 make npx-dev-build。' >&2
   exit 1
 fi
-grep -q 'NPM_PACKAGE_NAME' "$script"
-grep -q 'NPM_PACKAGE_DIR' "$script"
-grep -q 'NPM_VERSION_STRATEGY' "$script"
-grep -q 'root_version' "$script"
-grep -q 'case "${NPM_VERSION_STRATEGY}"' "$script"
-grep -q 'mapped_base_patch' "$script"
-grep -q 'release_seq' "$script"
-grep -q 'PUBLISH_VERSION' "$script"
-grep -q 'BUILD_ONLY' "$script"
-grep -q 'release_package_key=' "$script"
-grep -q 'NPM_PACKAGE_NAME##' "$script"
-grep -q 'TARGET_OS' "$script"
-grep -q 'TARGET_ARCH' "$script"
-grep -q 'resolve_source_path' "$script"
-grep -q 'release-meta.mjs' "$script"
-grep -q 'release-meta.json' "$script"
-grep -q 'distributionMode' "$script"
-grep -q 'validate-npm-build-contract.mjs' "$script"
-grep -q 'SCRIPT_DIR=' "$script"
-grep -q 'node "${SCRIPT_DIR}/validate-npm-build-contract.mjs"' "$script"
-grep -q -- '--print-files' "$script"
-grep -q 'manifest.json' "$script"
-grep -q 'manifest_files' "$script"
-if grep -q 'contract_json_file=' "$script"; then
-  echo 'manifest_files 不应再通过临时 contract_json 文件中转。' >&2
+grep -q 'npm-release-common.sh' "$prepare_script"
+grep -q 'npm-release-common.sh' "$assets_script"
+grep -q 'npm-release-common.sh' "$publish_script"
+grep -q 'publish-context.json' "$prepare_script"
+grep -q 'manifest.txt' "$prepare_script"
+grep -q 'release-meta.json' "$prepare_script"
+grep -q 'package/' "$prepare_script"
+grep -q 'validate-npm-build-contract.mjs' "$assets_script"
+grep -q 'checksums.txt' "$assets_script"
+grep -q "createHash('sha256')" "$assets_script"
+if grep -q 'npm publish' "$assets_script"; then
+  echo '平台资产脚本不应包含 npm publish。' >&2
   exit 1
 fi
-if grep -q "fs.readFileSync(0, 'utf8')" "$script"; then
-  echo 'manifest_files 不应再通过 stdin 管道解析 contract_json。' >&2
+grep -q 'publish-context.json' "$publish_script"
+grep -q 'manifest.txt' "$publish_script"
+grep -q 'npm pack' "$publish_script"
+grep -q 'npm publish' "$publish_script"
+if grep -q 'pnpm i --frozen-lockfile' "$publish_script"; then
+  echo '发布脚本不应重新安装依赖。' >&2
   exit 1
 fi
-if grep -q 'JSON.parse(process.argv\[1\])' "$script"; then
-  echo 'manifest_files 不应直接通过命令行 JSON 参数解析 contract_json。' >&2
+if grep -q 'pnpm run build:npx' "$publish_script"; then
+  echo '发布脚本不应重新执行 build:npx。' >&2
   exit 1
 fi
-if grep -q "JSON.parse(fs.readFileSync(process.argv\\[1\\], 'utf8'))" "$script"; then
-  echo 'manifest_files 不应再通过 shell + node -e 读取 contract_json 文件。' >&2
-  exit 1
-fi
-grep -q 'checksums.txt' "$script"
-grep -q "createHash('sha256')" "$script"
-grep -q 'pnpm run build:npx' "$script"
 if grep -q 'path: npm-artifacts/${{ matrix.target }}' "$workflow"; then
   echo 'workflow 不应上传整个 npm-artifacts 目录，否则会把 stage 原始文件一并带进 release。' >&2
   exit 1
@@ -80,17 +84,17 @@ fi
 grep -q 'path: |' "$workflow"
 grep -Fq 'npm-artifacts/${{ matrix.target }}/*.${{ matrix.archive_ext }}' "$workflow"
 grep -Fq 'npm-artifacts/${{ matrix.target }}/*-checksums.txt' "$workflow"
-if grep -q 'cp "${PACKAGE_FILE}" "${artifact_dir}/${asset_name}"' "$script"; then
-  echo 'BUILD_ONLY 不应再把 npm tgz 直接当作平台 release 资产。' >&2
+if grep -q 'release-npm-package.sh' "$publish_script"; then
+  echo '发布脚本不应回退到旧混合脚本。' >&2
   exit 1
 fi
-if grep -Fq "Compress-Archive -Path '\$source_dir_windows\\\\*'" "$script"; then
+if grep -Fq "Compress-Archive -Path '\$source_dir_windows\\\\*'" "$common_script"; then
   echo 'Windows 压缩不应继续使用绝对路径加通配符的旧实现。' >&2
   exit 1
 fi
-grep -q 'Set-Location -LiteralPath' "$script"
-grep -q 'Get-ChildItem -Force' "$script"
-grep -q 'Compress-Archive -LiteralPath' "$script"
+grep -q 'Set-Location -LiteralPath' "$common_script"
+grep -q 'Get-ChildItem -Force' "$common_script"
+grep -q 'Compress-Archive -LiteralPath' "$common_script"
 grep -q 'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}' "$workflow"
 grep -q 'id-token: write' "$workflow"
 grep -q 'gh release create' "$workflow"
@@ -99,20 +103,7 @@ if grep -q -- '--verify-tag' "$workflow"; then
   echo 'GitHub Release 分发不应要求仓库内预先存在同名 tag。' >&2
   exit 1
 fi
-grep -q 'npm publish' "$script"
-if grep -q 'cp -R "${artifact_package_dir}/." "${package_dir}/"' "$script"; then
-  echo '不应再把平台 package 内容合并回轻量 npm 包。' >&2
-  exit 1
-fi
-if grep -q 'NPM_RELEASE_PACKAGE_KEY' "$script"; then
-  echo '脚本不应再依赖 NPM_RELEASE_PACKAGE_KEY。' >&2
-  exit 1
-fi
-if grep -q 'NPM_RELEASE_REPOSITORY' "$script"; then
-  echo '脚本不应再依赖 NPM_RELEASE_REPOSITORY。' >&2
-  exit 1
-fi
-if grep -q 'NODE_AUTH_TOKEN' "$script"; then
+if grep -q 'NODE_AUTH_TOKEN' "$publish_script"; then
   echo 'Trusted Publishing 发布脚本不应再依赖 NODE_AUTH_TOKEN。' >&2
   exit 1
 fi
@@ -128,16 +119,17 @@ if grep -q 'registry-url: https://registry.npmjs.org' "$workflow"; then
   echo 'workflow 不应再为 npm 11 写入 registry-url 触发 always-auth 警告。' >&2
   exit 1
 fi
-if grep -q -- '--provenance' "$script"; then
+if grep -q -- '--provenance' "$publish_script"; then
   echo 'Trusted Publishing 由 npm 自动处理 provenance，不应手工追加 --provenance。' >&2
   exit 1
 fi
-if grep -q 'shasum -a 256' "$script"; then
+if grep -q 'shasum -a 256' "$assets_script"; then
   echo '发布脚本不应再依赖 shasum 生成校验文件。' >&2
   exit 1
 fi
-grep -q 'package.json' "$script"
-if grep -q './npx-cli/package.json' "$script"; then
+grep -q 'package.json' "$prepare_script"
+grep -q 'package.json' "$publish_script"
+if grep -q './npx-cli/package.json' "$publish_script"; then
   echo '发布脚本不应写死 npx-cli/package.json 路径。' >&2
   exit 1
 fi
