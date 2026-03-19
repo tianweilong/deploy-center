@@ -14,9 +14,11 @@ jobs:
         run: ruby -e "require 'yaml'; Dir['**/*.yaml'].each { |f| YAML.load_file(f); puts f }"
       - name: 校验发布辅助脚本
         run: |
-          ruby -c scripts/prepare-release-matrix.rb
-          bash -n scripts/npm-release-common.sh
-          bash -n scripts/prepare-npm-publish-input.sh
-          bash -n scripts/build-npm-release-assets.sh
-          bash -n scripts/publish-npm-package.sh
-          bash -n scripts/merge-release-checksums.sh
+          node --check scripts/prepare-release-matrix.mjs
+          node --check scripts/npm-release-common.mjs
+          node --check scripts/prepare-npm-publish-input.mjs
+          node --check scripts/build-npm-release-assets.mjs
+          node --check scripts/publish-npm-package.mjs
+          node --check scripts/merge-release-checksums.mjs
+          node --check scripts/release-meta.mjs
+          node --check scripts/validate-npm-build-contract.mjs
