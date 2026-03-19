@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@vino.tian/myte",
+  "packageVersion": "0.0.1",
+  "releaseRepository": "tianweilong/deploy-center",
+  "releaseTag": "myte-v0.0.1",
+  "releasePackageKey": "myte",
+  "distributionMode": "github_release"
+}
