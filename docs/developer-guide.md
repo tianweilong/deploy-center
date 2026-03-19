@@ -20,7 +20,7 @@
 3. `docs/rollout.md`：查看发布前置条件。
 4. `.github/workflows/release-service.yml`：理解实际发布执行路径。
 5. `config/services.vibe-kanban.json`：理解服务镜像构建配置。
-6. `tests/*.sh`：查看当前 workflow 的回归约束。
+6. `tests/*.mjs`：查看当前 workflow 的回归约束。
 
 ## 3. 目录结构与职责
 
@@ -48,7 +48,7 @@
 - `scripts/build-npm-release-assets.mjs`：构建多平台 npm Release 资产与 checksum。
 - `scripts/publish-npm-package.mjs`：消费发布输入目录并通过 Trusted Publishing 发布轻量 npm 包。
 - `scripts/merge-release-checksums.mjs`：合并多平台资产生成的校验文件。
-- `tests/*.sh`：覆盖工作流结构、矩阵生成、npm 产物和发布约束。
+- `tests/*.mjs`：覆盖工作流结构、矩阵生成、npm 产物和发布约束。
 
 ### 未来代理协议
 
@@ -192,10 +192,10 @@ node --check scripts/merge-release-checksums.mjs
 ### 6.2 运行回归测试
 
 ```bash
-bash tests/prepare-release-matrix.sh
-bash tests/release-workflow.sh
-bash tests/ghcr-references.sh
-bash tests/localization-language.sh
+node tests/prepare-release-matrix.mjs
+node tests/release-workflow.mjs
+node tests/ghcr-references.mjs
+node tests/localization-language.mjs
 ```
 
 这些测试主要覆盖：
@@ -241,7 +241,7 @@ node scripts/prepare-release-matrix.mjs config/services.vibe-kanban.json
 1. 在对应的 `config/services.*.json` 中增加构建配置。
 2. 若需要服务盘点信息，再同步 `services/registry.yaml`。
 3. 若新服务有额外 build args，确保仓库变量也已创建。
-4. 补充或更新 `tests/*.sh`。
+4. 补充或更新 `tests/*.mjs`。
 5. 运行基础校验与回归测试。
 
 对于公共镜像仓库，推荐额外约定：
@@ -257,8 +257,8 @@ node scripts/prepare-release-matrix.mjs config/services.vibe-kanban.json
 
 - `config/services.*.json`
 - `.github/workflows/release-service.yml`
-- `tests/prepare-release-matrix.sh`
-- `tests/release-workflow.sh`
+- `tests/prepare-release-matrix.mjs`
+- `tests/release-workflow.mjs`
 
 ### 8.3 修改 npm 发布逻辑
 
@@ -269,8 +269,8 @@ node scripts/prepare-release-matrix.mjs config/services.vibe-kanban.json
 - `scripts/build-npm-release-assets.mjs`
 - `scripts/publish-npm-package.mjs`
 - `scripts/merge-release-checksums.mjs`
-- `tests/npm-release-workflow.sh`
-- `tests/release-npm-package-artifact-path.sh`
+- `tests/npm-release-workflow.mjs`
+- `tests/release-npm-package-artifact-path.mjs`
 
 ## 9. 快速心智模型
 
