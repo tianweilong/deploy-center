@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildReleaseMetaPayload,
   parseSourceTagVersion,
+  resolveCommandForSpawn,
   resolveDistPlatformDir,
   resolvePublishVersion,
   resolveSourcePath,
@@ -103,4 +104,15 @@ test('buildReleaseMetaPayload 保持发布元数据契约', () => {
       releaseRepository: 'tianweilong/deploy-center',
     },
   );
+});
+
+test('resolveCommandForSpawn 在 Windows 下为 npm 与 pnpm 使用 .cmd', () => {
+  assert.equal(resolveCommandForSpawn('pnpm', 'win32'), 'pnpm.cmd');
+  assert.equal(resolveCommandForSpawn('npm', 'win32'), 'npm.cmd');
+  assert.equal(resolveCommandForSpawn('tar', 'win32'), 'tar');
+});
+
+test('resolveCommandForSpawn 在非 Windows 平台保持原命令', () => {
+  assert.equal(resolveCommandForSpawn('pnpm', 'linux'), 'pnpm');
+  assert.equal(resolveCommandForSpawn('npm', 'darwin'), 'npm');
 });

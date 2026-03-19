@@ -139,9 +139,16 @@ export async function writeJsonFile(filePath, value) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+export function resolveCommandForSpawn(command, platform = process.platform) {
+  if (platform === 'win32' && (command === 'pnpm' || command === 'npm')) {
+    return `${command}.cmd`;
+  }
+  return command;
+}
+
 export async function runCommand(command, args, options = {}) {
   await new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(resolveCommandForSpawn(command), args, {
       stdio: 'inherit',
       ...options,
     });
