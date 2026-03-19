@@ -3,6 +3,7 @@
 import { readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { isMainModule } from './module-entrypoint.mjs';
 
 async function listChecksumFiles(rootDir) {
   const results = [];
@@ -61,7 +62,7 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   try {
     await main();
   } catch (error) {

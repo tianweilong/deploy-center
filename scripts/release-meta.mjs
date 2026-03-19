@@ -3,6 +3,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { isMainModule } from './module-entrypoint.mjs';
 
 const SUPPORTED_DISTRIBUTION_MODES = new Set([
   'github_release',
@@ -63,7 +64,7 @@ async function main() {
   process.stdout.write(`${JSON.stringify(meta)}\n`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   try {
     await main();
   } catch (error) {
