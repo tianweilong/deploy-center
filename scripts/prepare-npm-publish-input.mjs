@@ -28,21 +28,32 @@ async function main() {
   const outputDirInput = process.env.OUTPUT_DIR ?? '../npm-publish-input';
   const context = await initNpmReleaseContext(sourceDir);
   const outputDir = resolveSourcePath(context.sourceRoot, outputDirInput);
+  const sourcePackageDir = path.join(context.sourceRoot, context.packageDir);
   const packageDir = path.join(outputDir, 'package');
 
   await runCommand('pnpm', ['i', '--frozen-lockfile'], {
     cwd: context.sourceRoot,
   });
+  await writeJsonFile(
+    path.join(sourcePackageDir, 'release-meta.json'),
+    buildReleaseMeta(context.releaseMetaPayload),
+  );
+  await runCommand(
+    'npm',
+    [
+      'version',
+      context.publishVersion,
+      '--no-git-tag-version',
+      '--allow-same-version',
+    ],
+    { cwd: sourcePackageDir },
+  );
   await runCommand('pnpm', ['run', 'build:npx'], {
     cwd: context.sourceRoot,
   });
 
   await recreateDir(outputDir);
-  await copyPackageDirectory(path.join(context.sourceRoot, context.packageDir), packageDir);
-  await writeJsonFile(
-    path.join(packageDir, 'release-meta.json'),
-    buildReleaseMeta(context.releaseMetaPayload),
-  );
+  await copyPackageDirectory(sourcePackageDir, packageDir);
   await writeJsonFile(path.join(outputDir, 'publish-context.json'), {
     packageName: context.actualPackageName,
     publishVersion: context.publishVersion,

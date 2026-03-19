@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const targetOs = process.env.TARGET_OS;
@@ -9,7 +9,9 @@ if (targetOs !== 'linux' || targetArch !== 'x64') {
 }
 
 const distDir = path.join('npm', 'myte', 'dist', 'linux-x64');
+const packageDir = path.join('npm', 'myte');
 await mkdir(distDir, { recursive: true });
+await mkdir(path.join(packageDir, 'bin'), { recursive: true });
 await writeFile(path.join(distDir, 'myte'), 'fixture-binary\n');
 await writeFile(
   path.join(distDir, 'manifest.json'),
@@ -25,4 +27,24 @@ await writeFile(
     null,
     2,
   ) + '\n',
+);
+
+const packageJson = JSON.parse(
+  await readFile(path.join(packageDir, 'package.json'), 'utf8'),
+);
+const releaseMeta = JSON.parse(
+  await readFile(path.join(packageDir, 'release-meta.json'), 'utf8'),
+);
+
+await writeFile(
+  path.join(packageDir, 'bin', 'cli.js'),
+  [
+    '#!/usr/bin/env node',
+    `module.exports = ${JSON.stringify({
+      packageVersion: packageJson.version,
+      releasePackageVersion: releaseMeta.packageVersion,
+      releaseTag: releaseMeta.releaseTag,
+    })};`,
+    '',
+  ].join('\n'),
 );
