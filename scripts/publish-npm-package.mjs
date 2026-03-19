@@ -6,7 +6,11 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { isMainModule } from './module-entrypoint.mjs';
-import { readJsonFile, runCommand } from './npm-release-common.mjs';
+import {
+  readJsonFile,
+  resolveCommandForSpawn,
+  runCommand,
+} from './npm-release-common.mjs';
 
 async function readManifestEntries(manifestFile) {
   return (await readFile(manifestFile, 'utf8'))
@@ -21,7 +25,7 @@ async function findPackageArchive(packageDir) {
 
 async function commandSucceeds(command, args, options = {}) {
   return await new Promise((resolve) => {
-    const child = spawn(command, args, {
+    const child = spawn(resolveCommandForSpawn(command), args, {
       stdio: 'ignore',
       ...options,
     });
