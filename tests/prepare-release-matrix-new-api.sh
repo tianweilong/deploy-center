@@ -7,7 +7,7 @@ output=$(
   TARGET_SERVICES='new-api' \
   SOURCE_TAG='v1.2.3' \
   DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
-  ruby scripts/prepare-release-matrix.rb config/services.new-api.json
+  node scripts/prepare-release-matrix.mjs config/services.new-api.json
 )
 
 ruby -rjson -e '

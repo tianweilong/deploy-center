@@ -74,9 +74,10 @@ if grep -q -- '--verify-tag' "$file"; then
   exit 1
 fi
 grep -q 'github.repository' "$file"
-grep -q './scripts/prepare-npm-publish-input.sh source' "$file"
-grep -q './scripts/build-npm-release-assets.sh source' "$file"
-grep -q './scripts/publish-npm-package.sh' "$file"
+grep -q 'node scripts/prepare-release-matrix.mjs' "$file"
+grep -q 'node scripts/prepare-npm-publish-input.mjs source' "$file"
+grep -q 'node scripts/build-npm-release-assets.mjs source' "$file"
+grep -q 'node scripts/publish-npm-package.mjs' "$file"
 if grep -q "matrix.target == 'linux-x64'" "$file"; then
   echo 'npm 发布输入不应依赖固定矩阵分支，应由独立 job 生成。' >&2
   exit 1
@@ -135,7 +136,7 @@ if grep -q 'uses: ./source/.github/actions/setup-node' "$file"; then
   echo 'workflow 不应再依赖源仓库自带的 setup-node action。' >&2
   exit 1
 fi
-if grep -q 'bash -n scripts/release-npm-package.sh' '.github/workflows/validate-deployment-config.yml'; then
-  echo '部署配置校验 workflow 不应再检查已删除的旧 npm 脚本。' >&2
+if grep -qE 'bash -n scripts/|ruby -c scripts/|ruby scripts/prepare-release-matrix.rb' '.github/workflows/validate-deployment-config.yml'; then
+  echo '部署配置校验 workflow 不应再依赖 Bash 或 Ruby 脚本校验。' >&2
   exit 1
 fi

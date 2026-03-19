@@ -7,7 +7,7 @@ output=$( \
   TARGET_SERVICES='vibe-kanban-remote,vibe-kanban-relay' \
   SOURCE_TAG='v1.2.3' \
   DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
-  ruby scripts/prepare-release-matrix.rb config/services.vibe-kanban.json
+  node scripts/prepare-release-matrix.mjs config/services.vibe-kanban.json
 )
 
 ruby -rjson -e '
@@ -34,7 +34,7 @@ new_api_output=$( \
   TARGET_SERVICES='new-api' \
   SOURCE_TAG='v2.3.4' \
   DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
-  ruby scripts/prepare-release-matrix.rb config/services.new-api.json
+  node scripts/prepare-release-matrix.mjs config/services.new-api.json
 )
 
 ruby -rjson -e '
@@ -76,7 +76,7 @@ override_output=$( \
   TARGET_SERVICES='vibe-kanban-relay' \
   SOURCE_TAG='v1.2.3' \
   DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
-  ruby scripts/prepare-release-matrix.rb "$override_config"
+  node scripts/prepare-release-matrix.mjs "$override_config"
 )
 
 ruby -rjson -e '
@@ -111,7 +111,7 @@ docker_images_output=$( \
   TARGET_SERVICES='image-a,image-b' \
   SOURCE_TAG='latest' \
   DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
-  ruby scripts/prepare-release-matrix.rb "$docker_images_config"
+  node scripts/prepare-release-matrix.mjs "$docker_images_config"
 )
 
 ruby -rjson -e '
@@ -143,7 +143,7 @@ docker_mirror_output=$( \
   TARGET_SERVICES='postgres16,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden' \
   SOURCE_TAG='latest' \
   DEFAULT_IMAGE_PLATFORMS='linux/amd64,linux/arm64' \
-  ruby scripts/prepare-release-matrix.rb config/services.docker-mirror.json
+  node scripts/prepare-release-matrix.mjs config/services.docker-mirror.json
 )
 
 ruby -rjson -e '

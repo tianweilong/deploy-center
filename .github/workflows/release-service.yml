@@ -158,7 +158,7 @@ jobs:
 
           matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
             SOURCE_TAG="${SOURCE_TAG}" \
-            ruby scripts/prepare-release-matrix.rb "${{ steps.targets.outputs.service_config_path }}")
+            node scripts/prepare-release-matrix.mjs "${{ steps.targets.outputs.service_config_path }}")
           {
             echo 'matrix<<EOF'
             echo "$matrix"
@@ -278,7 +278,7 @@ jobs:
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-        run: ./scripts/prepare-npm-publish-input.sh source
+        run: node scripts/prepare-npm-publish-input.mjs source
 
       - name: 上传 npm 发布输入
         uses: actions/upload-artifact@v4
@@ -344,7 +344,7 @@ jobs:
           NPM_VERSION_STRATEGY: ${{ env.NPM_VERSION_STRATEGY }}
           NPM_BASE_VERSION_FILE: ${{ env.NPM_BASE_VERSION_FILE }}
           NPM_VERSION_PATCH_FACTOR: ${{ env.NPM_VERSION_PATCH_FACTOR }}
-        run: ./scripts/build-npm-release-assets.sh source
+        run: node scripts/build-npm-release-assets.mjs source
 
       - name: 上传 npm 平台产物
         uses: actions/upload-artifact@v4
@@ -382,7 +382,7 @@ jobs:
       - name: 合并多平台校验文件
         run: |
           set -euo pipefail
-          bash ./scripts/merge-release-checksums.sh release-artifacts
+          node scripts/merge-release-checksums.mjs release-artifacts
 
       - name: 生成 GitHub Release tag
         id: release-tag
@@ -447,4 +447,4 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: |
-          ./scripts/publish-npm-package.sh npm-publish-input
+          node scripts/publish-npm-package.mjs npm-publish-input

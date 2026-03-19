@@ -27,7 +27,7 @@ rm -rf "$source_root/npm-artifacts"
   NPM_PACKAGE_NAME=@vino.tian/myte \
   NPM_PACKAGE_DIR=npm/myte \
   NPM_VERSION_STRATEGY=source_tag \
-  bash "$repo_root/scripts/build-npm-release-assets.sh" source
+  node "$repo_root/scripts/build-npm-release-assets.mjs" source
 )
 
 if [ ! -d "$artifact_root" ]; then

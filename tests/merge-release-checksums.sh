@@ -13,7 +13,7 @@ printf 'sha-linux  myte-v0.1.9-linux-x64.tar.gz\n' > "$release_root/npm-package-
 printf 'sha-win  myte-v0.1.9-win32-x64.zip\n' > "$release_root/npm-package-win32-x64/myte-v0.1.9-checksums.txt"
 printf 'sha-darwin  myte-v0.1.9-darwin-arm64.tar.gz\n' > "$release_root/npm-package-darwin-arm64/myte-v0.1.9-checksums.txt"
 
-bash ./scripts/merge-release-checksums.sh "$release_root"
+node ./scripts/merge-release-checksums.mjs "$release_root"
 
 merged_file="$release_root/myte-v0.1.9-checksums.txt"
 

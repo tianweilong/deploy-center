@@ -33,8 +33,8 @@ auto_reject=(
   '.github/workflows/release-service.yml:Login to GitHub Container Registry'
   '.github/workflows/release-service.yml:Build and push image'
   '.github/workflows/release-service.yml:Missing required release input\.'
-  'scripts/prepare-release-matrix.rb:Unsupported service:'
-  'scripts/prepare-release-matrix.rb:Missing required build arg env:'
+  'scripts/prepare-release-matrix.mjs:Unsupported service:'
+  'scripts/prepare-release-matrix.mjs:Missing required build arg env:'
 )
 
 for entry in "${auto_reject[@]}"; do
