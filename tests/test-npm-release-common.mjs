@@ -8,6 +8,7 @@ import {
   resolveDistPlatformDir,
   resolvePublishVersion,
   resolveSourcePath,
+  shouldUseShellForCommand,
 } from '../scripts/npm-release-common.mjs';
 
 test('resolveSourcePath 返回绝对路径', () => {
@@ -106,13 +107,19 @@ test('buildReleaseMetaPayload 保持发布元数据契约', () => {
   );
 });
 
-test('resolveCommandForSpawn 在 Windows 下为 npm 与 pnpm 使用 .cmd', () => {
-  assert.equal(resolveCommandForSpawn('pnpm', 'win32'), 'pnpm.cmd');
-  assert.equal(resolveCommandForSpawn('npm', 'win32'), 'npm.cmd');
-  assert.equal(resolveCommandForSpawn('tar', 'win32'), 'tar');
+test('resolveCommandForSpawn 保持命令名不变', () => {
+  assert.equal(resolveCommandForSpawn('pnpm'), 'pnpm');
+  assert.equal(resolveCommandForSpawn('npm'), 'npm');
+  assert.equal(resolveCommandForSpawn('tar'), 'tar');
 });
 
-test('resolveCommandForSpawn 在非 Windows 平台保持原命令', () => {
-  assert.equal(resolveCommandForSpawn('pnpm', 'linux'), 'pnpm');
-  assert.equal(resolveCommandForSpawn('npm', 'darwin'), 'npm');
+test('shouldUseShellForCommand 在 Windows 下仅对 npm 与 pnpm 启用 shell', () => {
+  assert.equal(shouldUseShellForCommand('pnpm', 'win32'), true);
+  assert.equal(shouldUseShellForCommand('npm', 'win32'), true);
+  assert.equal(shouldUseShellForCommand('tar', 'win32'), false);
+});
+
+test('shouldUseShellForCommand 在非 Windows 平台保持关闭', () => {
+  assert.equal(shouldUseShellForCommand('pnpm', 'linux'), false);
+  assert.equal(shouldUseShellForCommand('npm', 'darwin'), false);
 });
