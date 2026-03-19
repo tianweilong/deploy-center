@@ -3,6 +3,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+if rg -q '\[System\.IO\.Compression\.ZipArchiveMode\]' scripts/npm-release-common.sh; then
+  echo 'Windows zip 打包脚本不应直接引用 ZipArchiveMode 类型，避免在部分 PowerShell 环境解析失败。' >&2
+  exit 1
+fi
+
 tmp_root="$(mktemp -d)"
 trap 'rm -rf "$tmp_root"' EXIT
 
