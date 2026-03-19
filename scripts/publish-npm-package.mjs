@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
+import { isMainModule } from './module-entrypoint.mjs';
 import { readJsonFile, runCommand } from './npm-release-common.mjs';
 
 async function readManifestEntries(manifestFile) {
@@ -108,7 +109,7 @@ async function main() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   try {
     await main();
   } catch (error) {

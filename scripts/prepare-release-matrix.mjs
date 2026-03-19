@@ -2,6 +2,7 @@
 
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
+import { isMainModule } from './module-entrypoint.mjs';
 
 function readRequestedServices() {
   return process.env.TARGET_SERVICES.split(',')
@@ -81,7 +82,7 @@ async function main() {
   process.stdout.write(`${JSON.stringify(matrix)}\n`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   try {
     await main();
   } catch (error) {

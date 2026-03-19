@@ -14,6 +14,7 @@ import {
   runCommand,
   writeSha256Checksum,
 } from './npm-release-common.mjs';
+import { isMainModule } from './module-entrypoint.mjs';
 import { validateBuildContract } from './validate-npm-build-contract.mjs';
 
 async function main() {
@@ -76,7 +77,7 @@ async function main() {
   process.stdout.write(`仅构建 ${targetOs}-${targetArch} Release 资产目录：${artifactDir}\n`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   try {
     await main();
   } catch (error) {

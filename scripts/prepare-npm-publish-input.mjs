@@ -12,6 +12,7 @@ import {
   runCommand,
   writeJsonFile,
 } from './npm-release-common.mjs';
+import { isMainModule } from './module-entrypoint.mjs';
 import { buildReleaseMeta } from './release-meta.mjs';
 
 async function writeManifestText(outputDir) {
@@ -55,7 +56,7 @@ async function main() {
   process.stdout.write(`已生成 npm 发布输入目录：${outputDir}\n`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   try {
     await main();
   } catch (error) {
