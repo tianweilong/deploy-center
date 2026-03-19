@@ -9,6 +9,7 @@ import { isMainModule } from './module-entrypoint.mjs';
 import {
   readJsonFile,
   resolveCommandForSpawn,
+  shouldUseShellForCommand,
   runCommand,
 } from './npm-release-common.mjs';
 
@@ -25,10 +26,15 @@ async function findPackageArchive(packageDir) {
 
 async function commandSucceeds(command, args, options = {}) {
   return await new Promise((resolve) => {
-    const child = spawn(resolveCommandForSpawn(command), args, {
+    const spawnOptions = {
       stdio: 'ignore',
       ...options,
-    });
+    };
+    if (spawnOptions.shell === undefined) {
+      spawnOptions.shell = shouldUseShellForCommand(command);
+    }
+
+    const child = spawn(resolveCommandForSpawn(command), args, spawnOptions);
     child.on('error', () => resolve(false));
     child.on('exit', (code) => resolve(code === 0));
   });
