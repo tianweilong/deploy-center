@@ -48,6 +48,21 @@ assert.equal(newApi.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(newApi.build_args, []);
 assert.equal(newApi.tag, 'v2.3.4');
 
+const weMpRssMatrix = buildMatrix(['config/services.we-mp-rss.json'], {
+  ...defaultEnv,
+  TARGET_SERVICES: 'we-mp-rss',
+  SOURCE_TAG: 'v3.4.5',
+});
+assert.equal(weMpRssMatrix.include.length, 1, 'we-mp-rss 应只返回一个服务');
+const weMpRss = weMpRssMatrix.include[0];
+assert.equal(weMpRss.service, 'we-mp-rss');
+assert.equal(weMpRss.image_repository, 'ghcr.io/tianweilong/we-mp-rss');
+assert.equal(weMpRss.context, 'source');
+assert.equal(weMpRss.dockerfile, 'Dockerfile');
+assert.equal(weMpRss.platforms, 'linux/amd64,linux/arm64');
+assert.deepEqual(weMpRss.build_args, []);
+assert.equal(weMpRss.tag, 'v3.4.5');
+
 const tempRoot = await createTempDir('deploy-center-matrix-');
 try {
   const overrideConfig = path.join(tempRoot, 'override.json');

@@ -1,0 +1,12 @@
+{
+  "project": "we-mp-rss",
+  "services": [
+    {
+      "service": "we-mp-rss",
+      "image_repository": "ghcr.io/tianweilong/we-mp-rss",
+      "context": "source",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    }
+  ]
+}
