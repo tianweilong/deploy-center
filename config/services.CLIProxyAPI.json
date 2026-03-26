@@ -1,0 +1,12 @@
+{
+  "project": "CLIProxyAPI",
+  "services": [
+    {
+      "service": "cli-proxy-api",
+      "image_repository": "tianweilong/cli-proxy-api",
+      "context": "source",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    }
+  ]
+}
