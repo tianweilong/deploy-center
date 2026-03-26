@@ -156,8 +156,11 @@ jobs:
             exit 0
           fi
 
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
             SOURCE_TAG="${SOURCE_TAG}" \
+            SOURCE_SHA="${SOURCE_SHA}" \
+            BUILD_DATE="${BUILD_DATE}" \
             node scripts/prepare-release-matrix.mjs "${{ steps.targets.outputs.service_config_path }}")
           {
             echo 'matrix<<EOF'

@@ -57,6 +57,8 @@ for (const pattern of [
   '上传 GitHub Release 资产',
   'github.repository',
   'node scripts/prepare-release-matrix.mjs',
+  'BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"',
+  'BUILD_DATE="${BUILD_DATE}"',
   'node scripts/prepare-npm-publish-input.mjs source',
   'node scripts/build-npm-release-assets.mjs source',
   'node scripts/publish-npm-package.mjs',
