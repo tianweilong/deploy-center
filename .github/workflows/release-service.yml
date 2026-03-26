@@ -213,33 +213,12 @@ jobs:
       - name: 配置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - id: registry
-        name: 解析镜像仓库
-        env:
-          IMAGE_REPOSITORY: ${{ matrix.image_repository }}
-        run: |
-          set -euo pipefail
-          image_repository="${IMAGE_REPOSITORY}"
-          registry="${image_repository%%/*}"
-          if [ "${registry}" = "${image_repository}" ]; then
-            registry=docker.io
-          fi
-          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
-
       - name: 登录 GitHub Container Registry
-        if: ${{ steps.registry.outputs.registry == 'ghcr.io' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 登录 Docker Hub
-        if: ${{ steps.registry.outputs.registry == 'docker.io' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: 构建并推送镜像
         uses: docker/build-push-action@v6

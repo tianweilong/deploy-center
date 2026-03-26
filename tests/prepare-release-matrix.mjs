@@ -170,7 +170,7 @@ const cliProxyApiMatrix = buildMatrix(['config/services.CLIProxyAPI.json'], {
 assert.equal(cliProxyApiMatrix.include.length, 1, 'CLIProxyAPI 应只返回一个服务');
 const cliProxyApi = cliProxyApiMatrix.include[0];
 assert.equal(cliProxyApi.service, 'cli-proxy-api');
-assert.equal(cliProxyApi.image_repository, 'tianweilong/cli-proxy-api');
+assert.equal(cliProxyApi.image_repository, 'ghcr.io/tianweilong/cli-proxy-api');
 assert.equal(cliProxyApi.context, 'source');
 assert.equal(cliProxyApi.dockerfile, 'Dockerfile');
 assert.equal(cliProxyApi.platforms, 'linux/amd64,linux/arm64');

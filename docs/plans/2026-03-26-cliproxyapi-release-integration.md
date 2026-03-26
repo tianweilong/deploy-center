@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 让 `CLIProxyAPI` 在 tag 发布时只通知 `deploy-center`，由 `deploy-center` 统一完成 `tianweilong/cli-proxy-api` 多架构镜像构建与推送。
+**Goal:** 让 `CLIProxyAPI` 在 tag 发布时只通知 `deploy-center`，由 `deploy-center` 统一完成 `ghcr.io/tianweilong/cli-proxy-api` 多架构镜像构建与推送。
 
 **Architecture:** 在 `deploy-center` 中新增 `CLIProxyAPI` 的服务配置并复用现有 `release-service.yml`。在 `CLIProxyAPI` 中删除现有 `.github` 内容，仅保留一个 tag 触发的 dispatch workflow；同时将 `Dockerfile` 改成 Buildx 兼容的跨平台 Go 构建。
 
@@ -21,7 +21,7 @@
 为 `config/services.CLIProxyAPI.json` 增加断言，要求产出：
 
 - `service=cli-proxy-api`
-- `image_repository=tianweilong/cli-proxy-api`
+- `image_repository=ghcr.io/tianweilong/cli-proxy-api`
 - `context=source`
 - `dockerfile=Dockerfile`
 - `platforms=linux/amd64,linux/arm64`
@@ -38,7 +38,7 @@ Run: `node tests/prepare-release-matrix.mjs`
 
 Run: `node tests/prepare-release-matrix.mjs`
 
-### Task 2: 让 release workflow 支持 Docker Hub 登录
+### Task 2: 保持 release workflow 只走 GHCR 登录
 
 **Files:**
 - Modify: `deploy-center/.github/workflows/release-service.yml`
@@ -46,7 +46,7 @@ Run: `node tests/prepare-release-matrix.mjs`
 
 **Step 1: Write the failing test**
 
-断言 workflow 包含 registry 解析和 Docker Hub 登录分支。
+断言 workflow 不包含 Docker Hub 分支，并继续固定使用 `ghcr.io` 登录。
 
 **Step 2: Run test to verify it fails**
 
@@ -54,7 +54,7 @@ Run: `node tests/release-workflow.mjs`
 
 **Step 3: Write minimal implementation**
 
-根据 `matrix.image_repository` 是否带 registry 前缀，分别登录 `ghcr.io` 或 Docker Hub。
+保持 `docker/login-action` 固定登录 `ghcr.io`，不引入额外 registry 分支。
 
 **Step 4: Run test to verify it passes**
 

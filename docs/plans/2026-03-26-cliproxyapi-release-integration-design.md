@@ -6,7 +6,7 @@
 
 - `CLIProxyAPI` 源仓库只负责在 tag 发布时通知 `deploy-center`
 - `deploy-center` 统一完成多架构镜像构建与推送
-- 镜像名称固定为 `tianweilong/cli-proxy-api`
+- 镜像名称固定为 `ghcr.io/tianweilong/cli-proxy-api`
 
 ## 决策
 
@@ -41,5 +41,4 @@
 
 ## 风险与边界
 
-- `deploy-center` 当前 workflow 同时登录 GHCR，若镜像仓库配置不带 registry 前缀，`docker/login-action` 可直接登录 Docker Hub。
 - `CLIProxyAPI` 现有 PR 构建与路径守卫会被移除，这是本次需求的明确结果，不做保留。
