@@ -161,3 +161,24 @@ assert.equal(bitwarden.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(bitwarden.build_args, []);
 assert.equal(bitwarden.tag, 'latest');
 assert.equal(postgres16.image_repository, 'ghcr.io/tianweilong/postgres16');
+
+const cliProxyApiMatrix = buildMatrix(['config/services.CLIProxyAPI.json'], {
+  ...defaultEnv,
+  TARGET_SERVICES: 'cli-proxy-api',
+  SOURCE_TAG: 'v4.5.6',
+  SOURCE_SHA: 'abcdef1234567890',
+  BUILD_DATE: '2026-03-26T12:34:56Z',
+});
+assert.equal(cliProxyApiMatrix.include.length, 1, 'CLIProxyAPI 应只返回一个服务');
+const cliProxyApi = cliProxyApiMatrix.include[0];
+assert.equal(cliProxyApi.service, 'cli-proxy-api');
+assert.equal(cliProxyApi.image_repository, 'ghcr.io/tianweilong/cli-proxy-api');
+assert.equal(cliProxyApi.context, 'source');
+assert.equal(cliProxyApi.dockerfile, 'Dockerfile');
+assert.equal(cliProxyApi.platforms, 'linux/amd64,linux/arm64');
+assert.deepEqual(cliProxyApi.build_args, [
+  'VERSION=v4.5.6',
+  'COMMIT=abcdef1234567890',
+  'BUILD_DATE=2026-03-26T12:34:56Z',
+]);
+assert.equal(cliProxyApi.tag, 'v4.5.6');

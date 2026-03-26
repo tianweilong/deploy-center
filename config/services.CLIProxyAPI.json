@@ -1,0 +1,25 @@
+{
+  "project": "CLIProxyAPI",
+  "services": [
+    {
+      "service": "cli-proxy-api",
+      "image_repository": "ghcr.io/tianweilong/cli-proxy-api",
+      "context": "source",
+      "dockerfile": "Dockerfile",
+      "build_args": [
+        {
+          "name": "VERSION",
+          "env": "SOURCE_TAG"
+        },
+        {
+          "name": "COMMIT",
+          "env": "SOURCE_SHA"
+        },
+        {
+          "name": "BUILD_DATE",
+          "env": "BUILD_DATE"
+        }
+      ]
+    }
+  ]
+}
