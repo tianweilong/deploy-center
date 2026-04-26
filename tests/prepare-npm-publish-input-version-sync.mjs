@@ -21,6 +21,7 @@ try {
       SOURCE_TAG: 'v0.1.4',
       NPM_PACKAGE_NAME: '@vino.tian/myte',
       NPM_PACKAGE_DIR: 'npm/myte',
+      NPM_DIST_TAG: 'candidate',
       NPM_VERSION_STRATEGY: 'source_tag',
       TARGET_OS: 'linux',
       TARGET_ARCH: 'x64',
@@ -28,11 +29,15 @@ try {
   });
 
   const packageDir = path.join(outputRoot, 'package');
+  const publishContext = JSON.parse(
+    await readFile(path.join(outputRoot, 'publish-context.json'), 'utf8'),
+  );
   const releaseMeta = JSON.parse(
     await readFile(path.join(packageDir, 'release-meta.json'), 'utf8'),
   );
   const cliBundle = await readFile(path.join(packageDir, 'bin', 'cli.js'), 'utf8');
 
+  assert.equal(publishContext.publishTag, 'candidate');
   assert.equal(releaseMeta.packageVersion, '0.1.4');
   assert.equal(releaseMeta.releaseTag, 'myte-v0.1.4');
   assert.match(cliBundle, /"packageVersion":"0\.1\.4"/);

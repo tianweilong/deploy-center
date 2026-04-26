@@ -26,6 +26,7 @@ await assertFileExists('scripts/publish-npm-package.mjs');
 
 for (const pattern of [
   'npm_package_name',
+  'npm_dist_tag',
   'release-npm-assets:',
   'prepare-npm-publish-input:',
   'release-github-release:',
@@ -88,6 +89,7 @@ for (const pattern of [
   'manifest.txt',
   'release-meta.json',
   'package/',
+  'publishTag',
 ]) {
   assertContains(prepareScript, pattern);
 }
@@ -118,8 +120,11 @@ for (const pattern of [
   'publish-context.json',
   'manifest.txt',
   "runCommand('npm', ['pack']",
-  "runCommand('npm', ['publish'",
+  "runCommand('npm', publishArgs",
   'package.json',
+  'publishContext.publishTag',
+  "'--tag'",
+  'const publishArgs =',
 ]) {
   assertContains(publishScript, pattern);
 }

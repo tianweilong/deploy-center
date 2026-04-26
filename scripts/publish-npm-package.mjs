@@ -114,7 +114,11 @@ async function main() {
   process.stdout.write(
     `通过 Trusted Publishing 发布 ${packageFile} -> ${publishContext.packageName}@${publishContext.publishVersion}\n`,
   );
-  await runCommand('npm', ['publish', packageFile, '--access', 'public'], {
+  const publishArgs = ['publish', packageFile, '--access', 'public'];
+  if (publishContext.publishTag) {
+    publishArgs.push('--tag', publishContext.publishTag);
+  }
+  await runCommand('npm', publishArgs, {
     cwd: packageDir,
   });
 }
