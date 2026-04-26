@@ -61,6 +61,7 @@ for (const pattern of [
   'BUILD_DATE="${BUILD_DATE}"',
   'node scripts/prepare-npm-publish-input.mjs source',
   'node scripts/build-npm-release-assets.mjs source',
+  'node scripts/merge-desktop-manifest.mjs release-artifacts',
   'node scripts/publish-npm-package.mjs',
   'node-version: 24',
   'uses: ./.github/actions/checkout-source',
@@ -76,6 +77,12 @@ for (const pattern of [
   'target-os: linux',
   'target-os: ${{ matrix.target_os }}',
   'NODE_OPTIONS: --max-old-space-size=6144',
+  'BUILD_DESKTOP_BUNDLE:',
+  'DESKTOP_RELEASE_MODE:',
+  'npm-artifacts/${{ matrix.target }}/*.app.tar.gz',
+  'npm-artifacts/${{ matrix.target }}/*.AppImage.tar.gz',
+  'npm-artifacts/${{ matrix.target }}/*-setup.exe',
+  'npm-artifacts/${{ matrix.target }}/*-desktop-manifest-fragment.json',
 ]) {
   assertContains(file, pattern);
 }
