@@ -35,6 +35,56 @@ export function resolveDistPlatformDir(targetOs, targetArch) {
   }
 }
 
+export function resolveTauriPlatform(targetOs, targetArch) {
+  switch (`${targetOs}-${targetArch}`) {
+    case 'darwin-arm64':
+      return 'darwin-aarch64';
+    case 'darwin-x64':
+      return 'darwin-x86_64';
+    case 'linux-x64':
+      return 'linux-x86_64';
+    case 'linux-arm64':
+      return 'linux-aarch64';
+    case 'win32-x64':
+      return 'windows-x86_64';
+    case 'win32-arm64':
+      return 'windows-aarch64';
+    default:
+      throw new Error(`不支持的 tauri 平台目录映射：${targetOs}-${targetArch}`);
+  }
+}
+
+function sanitizeReleaseAssetFileName(fileName) {
+  return fileName.trim().replace(/\s+/g, '-');
+}
+
+export function buildDesktopReleaseAssetName(releaseTag, tauriPlatform, fileName) {
+  return `${releaseTag}-${tauriPlatform}-${sanitizeReleaseAssetFileName(fileName)}`;
+}
+
+export function buildDesktopManifestFragment({
+  releaseTag,
+  version,
+  tauriPlatform,
+  file,
+  sha256,
+  size,
+  type,
+}) {
+  return {
+    releaseTag,
+    version,
+    platforms: {
+      [tauriPlatform]: {
+        file,
+        sha256,
+        size,
+        type,
+      },
+    },
+  };
+}
+
 export function parseSourceTagVersion(sourceTag) {
   const match = /^v([0-9]+)\.([0-9]+)\.([0-9]+)$/.exec(sourceTag);
   if (!match) {
@@ -285,6 +335,35 @@ export async function copyManifestFilesToStage(sourceDir, stageDir, manifestFile
   }
 }
 
+export async function findDesktopBundleArtifact(bundleDir) {
+  const entries = await readdir(bundleDir, { withFileTypes: true }).catch(() => []);
+  const files = entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => !name.endsWith('.sig'))
+    .sort();
+
+  const tarGz = files.find(
+    (name) => name.endsWith('.app.tar.gz') || name.endsWith('.AppImage.tar.gz'),
+  );
+  if (tarGz) {
+    return {
+      file: tarGz,
+      type: tarGz.endsWith('.app.tar.gz') ? 'app-tar-gz' : 'appimage-tar-gz',
+    };
+  }
+
+  const installer = files.find((name) => name.endsWith('-setup.exe'));
+  if (installer) {
+    return {
+      file: installer,
+      type: 'nsis-exe',
+    };
+  }
+
+  return null;
+}
+
 function buildCrc32Table() {
   const table = new Uint32Array(256);
   for (let index = 0; index < 256; index += 1) {
@@ -476,9 +555,21 @@ export async function createPlatformArchive(sourceDir, archivePath, archiveExt) 
 }
 
 export async function writeSha256Checksum(filePath, outputPath) {
+  await writeSha256Checksums([filePath], outputPath);
+}
+
+export async function buildSha256ChecksumLine(filePath) {
   const hash = crypto
     .createHash('sha256')
     .update(await readFile(filePath))
     .digest('hex');
-  await writeFile(outputPath, `${hash}  ${path.basename(filePath)}\n`, 'utf8');
+  return `${hash}  ${path.basename(filePath)}`;
+}
+
+export async function writeSha256Checksums(filePaths, outputPath) {
+  const lines = [];
+  for (const filePath of filePaths) {
+    lines.push(await buildSha256ChecksumLine(filePath));
+  }
+  await writeFile(outputPath, `${lines.sort().join('\n')}\n`, 'utf8');
 }

@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildDesktopReleaseAssetName,
+  buildDesktopManifestFragment,
   buildReleaseMetaPayload,
   parseSourceTagVersion,
+  resolveTauriPlatform,
   resolveCommandForSpawn,
   resolveDistPlatformDir,
   resolvePublishVersion,
@@ -29,6 +32,49 @@ test('resolveDistPlatformDir 对未知平台报错', () => {
   assert.throws(
     () => resolveDistPlatformDir('darwin', 'x64'),
     /不支持的 dist 平台目录映射/,
+  );
+});
+
+test('resolveTauriPlatform 映射桌面 bundle 平台目录', () => {
+  assert.equal(resolveTauriPlatform('darwin', 'arm64'), 'darwin-aarch64');
+  assert.equal(resolveTauriPlatform('linux', 'x64'), 'linux-x86_64');
+  assert.equal(resolveTauriPlatform('win32', 'x64'), 'windows-x86_64');
+});
+
+test('buildDesktopReleaseAssetName 生成无空格的 release 文件名', () => {
+  assert.equal(
+    buildDesktopReleaseAssetName(
+      'vibe-kanban-v0.1.36',
+      'darwin-aarch64',
+      'Vibe Kanban.app.tar.gz',
+    ),
+    'vibe-kanban-v0.1.36-darwin-aarch64-Vibe-Kanban.app.tar.gz',
+  );
+});
+
+test('buildDesktopManifestFragment 生成单平台桌面 manifest 片段', () => {
+  assert.deepEqual(
+    buildDesktopManifestFragment({
+      releaseTag: 'vibe-kanban-v0.1.36',
+      version: '0.1.36',
+      tauriPlatform: 'darwin-aarch64',
+      file: 'vibe-kanban-v0.1.36-darwin-aarch64-Vibe-Kanban.app.tar.gz',
+      sha256: 'abc123',
+      size: 123,
+      type: 'app-tar-gz',
+    }),
+    {
+      releaseTag: 'vibe-kanban-v0.1.36',
+      version: '0.1.36',
+      platforms: {
+        'darwin-aarch64': {
+          file: 'vibe-kanban-v0.1.36-darwin-aarch64-Vibe-Kanban.app.tar.gz',
+          sha256: 'abc123',
+          size: 123,
+          type: 'app-tar-gz',
+        },
+      },
+    },
   );
 });
 
