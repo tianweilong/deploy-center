@@ -343,6 +343,10 @@ jobs:
         if: ${{ hashFiles('source/rust-toolchain.toml', 'source/rust-toolchain') != '' }}
         uses: dtolnay/rust-toolchain@stable
 
+      - name: 安装 Tauri CLI
+        if: ${{ env.NPM_PACKAGE_NAME == '@vino.tian/vibe-kanban' && matrix.target == 'darwin-arm64' }}
+        run: cargo install tauri-cli --version '^2' --locked
+
       - name: 构建 npm 平台产物
         shell: bash
         env:
