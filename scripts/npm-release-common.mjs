@@ -225,6 +225,7 @@ export async function initNpmReleaseContext(sourceDir = 'source', env = process.
   const sourceTag = env.SOURCE_TAG;
   const packageName = env.NPM_PACKAGE_NAME;
   const packageDir = env.NPM_PACKAGE_DIR;
+  const publishTag = env.NPM_DIST_TAG?.trim() ?? '';
   const versionStrategy = env.NPM_VERSION_STRATEGY;
 
   if (!sourceTag) {
@@ -281,6 +282,7 @@ export async function initNpmReleaseContext(sourceDir = 'source', env = process.
     packageDir,
     packageJsonPath,
     actualPackageName,
+    publishTag,
     publishVersion,
     releasePackageKey,
     releaseMetaPayload,

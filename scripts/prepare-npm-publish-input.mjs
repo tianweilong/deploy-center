@@ -57,6 +57,7 @@ async function main() {
   await writeJsonFile(path.join(outputDir, 'publish-context.json'), {
     packageName: context.actualPackageName,
     publishVersion: context.publishVersion,
+    publishTag: context.publishTag,
     sourceTag: context.sourceTag,
     releaseTag: context.releaseTag,
     releasePackageKey: context.releasePackageKey,
