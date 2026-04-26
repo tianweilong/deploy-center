@@ -259,10 +259,10 @@ jobs:
           fetch-depth: 0
 
       - name: 安装 Go
-        if: ${{ hashFiles('source/go.mod') != '' }}
+        if: ${{ hashFiles('source/go/go.mod') != '' }}
         uses: actions/setup-go@v5
         with:
-          go-version-file: source/go.mod
+          go-version-file: source/go/go.mod
           cache: true
 
       - uses: ./.github/actions/setup-node-pnpm
@@ -322,10 +322,10 @@ jobs:
           fetch-depth: 0
 
       - name: 安装 Go
-        if: ${{ hashFiles('source/go.mod') != '' }}
+        if: ${{ hashFiles('source/go/go.mod') != '' }}
         uses: actions/setup-go@v5
         with:
-          go-version-file: source/go.mod
+          go-version-file: source/go/go.mod
           cache: true
 
       - uses: ./.github/actions/setup-node-pnpm
