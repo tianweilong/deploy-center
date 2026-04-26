@@ -24,6 +24,15 @@ async function findPackageArchive(packageDir) {
   return (await readdir(packageDir)).find((entry) => entry.endsWith('.tgz'));
 }
 
+async function fileExists(filePath) {
+  try {
+    await readFile(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function commandSucceeds(command, args, options = {}) {
   return await new Promise((resolve) => {
     const spawnOptions = {
@@ -69,6 +78,11 @@ async function main() {
   const publishContext = await readJsonFile(publishContextPath);
   const packageDir = path.join(inputDir, publishContext.packageDir);
   const packageJsonPath = path.join(packageDir, 'package.json');
+  const preparePublishScriptPath = path.join(
+    packageDir,
+    'scripts',
+    'prepare-publish.mjs',
+  );
 
   try {
     await readFile(packageJsonPath);
@@ -92,7 +106,10 @@ async function main() {
     ],
     { cwd: packageDir },
   );
-  await runCommand('npm', ['pack'], { cwd: packageDir });
+  if (await fileExists(preparePublishScriptPath)) {
+    await runCommand('node', [preparePublishScriptPath], { cwd: packageDir });
+  }
+  await runCommand('npm', ['pack', '--ignore-scripts'], { cwd: packageDir });
 
   const packageFile = await findPackageArchive(packageDir);
   if (!packageFile) {
