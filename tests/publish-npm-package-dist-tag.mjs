@@ -40,7 +40,7 @@ process.exit(0);
 async function createPublishInput(tempRoot, publishTag) {
   const inputDir = path.join(tempRoot, 'npm-publish-input');
   const packageDir = path.join(inputDir, 'package');
-  await mkdir(packageDir, { recursive: true });
+  await mkdir(path.join(packageDir, 'scripts'), { recursive: true });
   await writeFile(
     path.join(inputDir, 'manifest.txt'),
     'package/package.json\n',
@@ -63,6 +63,16 @@ async function createPublishInput(tempRoot, publishTag) {
   await writeFile(
     path.join(packageDir, 'package.json'),
     `${JSON.stringify({ name: '@vino.tian/myte', version: '0.0.1' }, null, 2)}\n`,
+    'utf8',
+  );
+  await writeFile(
+    path.join(packageDir, 'scripts', 'prepare-publish.mjs'),
+    `#!/usr/bin/env node
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
+
+writeFileSync(path.join(process.cwd(), 'prepare-publish-ran.txt'), 'ok');
+`,
     'utf8',
   );
   return inputDir;
@@ -116,6 +126,37 @@ test('publish-npm-package 在 publishTag 为空时保持默认 latest', async ()
       '--access',
       'public',
     ]);
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+test('publish-npm-package 在发布输入已预构建时跳过 prepack 并显式执行 prepare-publish', async () => {
+  const tempRoot = await createTempDir('deploy-center-publish-ignore-scripts-');
+  try {
+    const { binDir, logFile } = await installNpmStub(tempRoot);
+    const inputDir = await createPublishInput(tempRoot, 'candidate');
+    runNode([path.join(repoRoot, 'scripts/publish-npm-package.mjs'), inputDir], {
+      cwd: tempRoot,
+      env: {
+        PATH: `${binDir}:${process.env.PATH}`,
+        NPM_STUB_LOG: logFile,
+      },
+    });
+
+    const commands = (await readFile(logFile, 'utf8'))
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    const packCommand = commands.find((entry) => entry.command === 'pack');
+
+    assert.ok(packCommand, '期望执行 npm pack');
+    assert.deepEqual(packCommand.args, ['--ignore-scripts']);
+    await readFile(
+      path.join(inputDir, 'package', 'prepare-publish-ran.txt'),
+      'utf8',
+    );
   } finally {
     await removeDir(tempRoot);
   }
