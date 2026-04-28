@@ -63,6 +63,7 @@ for (const pattern of [
   'node scripts/prepare-npm-publish-input.mjs source',
   'node scripts/build-npm-release-assets.mjs source',
   'node scripts/merge-desktop-manifest.mjs release-artifacts',
+  'node scripts/merge-tauri-updater-json.mjs release-artifacts',
   'node scripts/publish-npm-package.mjs',
   'NPM_DIST_TAG',
   'node-version: 24',
@@ -84,10 +85,16 @@ for (const pattern of [
   'NODE_OPTIONS: --max-old-space-size=6144',
   'BUILD_DESKTOP_BUNDLE:',
   'DESKTOP_RELEASE_MODE:',
+  'TAURI_SIGNING_PRIVATE_KEY:',
+  'TAURI_SIGNING_PRIVATE_KEY_PASSWORD:',
+  'TAURI_UPDATE_ENDPOINT:',
   'npm-artifacts/${{ matrix.target }}/*.app.tar.gz',
   'npm-artifacts/${{ matrix.target }}/*.AppImage.tar.gz',
   'npm-artifacts/${{ matrix.target }}/*-setup.exe',
+  'npm-artifacts/${{ matrix.target }}/*.sig',
   'npm-artifacts/${{ matrix.target }}/*-desktop-manifest-fragment.json',
+  'npm-artifacts/${{ matrix.target }}/*-tauri-updater-fragment.json',
+  'gh release view "${NPM_PACKAGE_NAME##*/}-updater"',
 ]) {
   assertContains(file, pattern);
 }
