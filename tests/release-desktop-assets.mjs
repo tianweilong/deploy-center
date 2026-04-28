@@ -40,7 +40,9 @@ try {
   assert.ok(files.includes('myte-v0.1.4-darwin-arm64.tar.gz'));
   assert.ok(files.includes('myte-v0.1.4-checksums.txt'));
   assert.ok(files.includes('myte-v0.1.4-desktop-manifest-fragment.json'));
+  assert.ok(files.includes('myte-v0.1.4-tauri-updater-fragment.json'));
   assert.ok(files.includes('myte-v0.1.4-darwin-aarch64-Myte.app.tar.gz'));
+  assert.ok(files.includes('myte-v0.1.4-darwin-aarch64-Myte.app.tar.gz.sig'));
 
   const checksums = await readFile(
     path.join(artifactRoot, 'myte-v0.1.4-checksums.txt'),
@@ -48,6 +50,7 @@ try {
   );
   assert.match(checksums, /myte-v0\.1\.4-darwin-arm64\.tar\.gz/);
   assert.match(checksums, /myte-v0\.1\.4-darwin-aarch64-Myte\.app\.tar\.gz/);
+  assert.match(checksums, /myte-v0\.1\.4-darwin-aarch64-Myte\.app\.tar\.gz\.sig/);
 
   const fragment = JSON.parse(
     await readFile(
@@ -64,6 +67,24 @@ try {
         sha256: '8f4d9ee223b9e62815d01cf8e4cc961a8b48f6ea4e4b5a7346a0dff6ffb6590b',
         size: 15,
         type: 'app-tar-gz',
+      },
+    },
+  });
+
+  const updaterFragment = JSON.parse(
+    await readFile(
+      path.join(artifactRoot, 'myte-v0.1.4-tauri-updater-fragment.json'),
+      'utf8',
+    ),
+  );
+  assert.deepEqual(updaterFragment, {
+    packageKey: 'myte',
+    releaseTag: 'myte-v0.1.4',
+    version: '0.1.4',
+    platforms: {
+      'darwin-aarch64': {
+        file: 'myte-v0.1.4-darwin-aarch64-Myte.app.tar.gz',
+        signature: 'desktop-signature',
       },
     },
   });

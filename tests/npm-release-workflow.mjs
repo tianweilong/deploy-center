@@ -15,6 +15,9 @@ const assetsScript = await readRepoFile('scripts/build-npm-release-assets.mjs');
 const mergeDesktopManifestScript = await readRepoFile(
   'scripts/merge-desktop-manifest.mjs',
 );
+const mergeTauriUpdaterScript = await readRepoFile(
+  'scripts/merge-tauri-updater-json.mjs',
+);
 const publishScript = await readRepoFile('scripts/publish-npm-package.mjs');
 
 await assertFileNotExists('scripts/release-npm-package.sh');
@@ -22,6 +25,7 @@ await assertFileNotExists('scripts/prepare-release-matrix.rb');
 await assertFileExists('scripts/prepare-npm-publish-input.mjs');
 await assertFileExists('scripts/build-npm-release-assets.mjs');
 await assertFileExists('scripts/merge-desktop-manifest.mjs');
+await assertFileExists('scripts/merge-tauri-updater-json.mjs');
 await assertFileExists('scripts/publish-npm-package.mjs');
 
 for (const pattern of [
@@ -35,6 +39,7 @@ for (const pattern of [
   'node scripts/prepare-npm-publish-input.mjs source',
   'node scripts/build-npm-release-assets.mjs source',
   'node scripts/merge-desktop-manifest.mjs release-artifacts',
+  'node scripts/merge-tauri-updater-json.mjs release-artifacts',
   'node scripts/publish-npm-package.mjs',
   'linux-arm64',
   'windows-latest',
@@ -58,12 +63,18 @@ for (const pattern of [
   'npm-artifacts/${{ matrix.target }}/*.app.tar.gz',
   'npm-artifacts/${{ matrix.target }}/*.AppImage.tar.gz',
   'npm-artifacts/${{ matrix.target }}/*-setup.exe',
+  'npm-artifacts/${{ matrix.target }}/*.sig',
   'npm-artifacts/${{ matrix.target }}/*-desktop-manifest-fragment.json',
+  'npm-artifacts/${{ matrix.target }}/*-tauri-updater-fragment.json',
   'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}',
   'BUILD_DESKTOP_BUNDLE:',
   'DESKTOP_RELEASE_MODE:',
+  'TAURI_SIGNING_PRIVATE_KEY:',
+  'TAURI_SIGNING_PRIVATE_KEY_PASSWORD:',
+  'TAURI_UPDATE_ENDPOINT:',
   'id-token: write',
   'gh release create',
+  'gh release view "${NPM_PACKAGE_NAME##*/}-updater"',
   'node scripts/merge-release-checksums.mjs release-artifacts',
 ]) {
   assertContains(workflow, pattern);
@@ -116,6 +127,16 @@ for (const pattern of [
   'platforms',
 ]) {
   assertContains(mergeDesktopManifestScript, pattern);
+}
+
+for (const pattern of [
+  'tauri-updater-fragment.json',
+  'updater.json',
+  'releases/download',
+  'packageKey',
+  'signature',
+]) {
+  assertContains(mergeTauriUpdaterScript, pattern);
 }
 
 for (const pattern of [
