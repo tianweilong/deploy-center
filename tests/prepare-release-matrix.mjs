@@ -63,6 +63,21 @@ assert.equal(weMpRss.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(weMpRss.build_args, []);
 assert.equal(weMpRss.tag, 'v3.4.5');
 
+const lobeHubMatrix = buildMatrix(['config/services.lobehub.json'], {
+  ...defaultEnv,
+  TARGET_SERVICES: 'lobehub',
+  SOURCE_TAG: 'v5.6.7',
+});
+assert.equal(lobeHubMatrix.include.length, 1, 'lobehub 应只返回一个服务');
+const lobeHub = lobeHubMatrix.include[0];
+assert.equal(lobeHub.service, 'lobehub');
+assert.equal(lobeHub.image_repository, 'ghcr.io/tianweilong/lobehub');
+assert.equal(lobeHub.context, 'source');
+assert.equal(lobeHub.dockerfile, 'Dockerfile');
+assert.equal(lobeHub.platforms, 'linux/amd64,linux/arm64');
+assert.deepEqual(lobeHub.build_args, []);
+assert.equal(lobeHub.tag, 'v5.6.7');
+
 const tempRoot = await createTempDir('deploy-center-matrix-');
 try {
   const overrideConfig = path.join(tempRoot, 'override.json');
@@ -146,14 +161,24 @@ try {
 const dockerMirrorMatrix = buildMatrix(['config/services.docker-mirror.json'], {
   ...defaultEnv,
   TARGET_SERVICES:
-    'postgres16,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden',
+    'postgres16,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden,paradedb-pg17,redis7-alpine,rustfs,minio-mc,searxng',
   SOURCE_TAG: 'latest',
 });
-assert.equal(dockerMirrorMatrix.include.length, 6, 'docker-mirror 应返回六个服务');
+assert.equal(dockerMirrorMatrix.include.length, 11, 'docker-mirror 应返回十一个服务');
 const bitwarden = dockerMirrorMatrix.include.find((item) => item.service === 'bitwarden');
 const postgres16 = dockerMirrorMatrix.include.find((item) => item.service === 'postgres16');
+const paradedbPg17 = dockerMirrorMatrix.include.find((item) => item.service === 'paradedb-pg17');
+const redis7Alpine = dockerMirrorMatrix.include.find((item) => item.service === 'redis7-alpine');
+const rustfs = dockerMirrorMatrix.include.find((item) => item.service === 'rustfs');
+const minioMc = dockerMirrorMatrix.include.find((item) => item.service === 'minio-mc');
+const searxng = dockerMirrorMatrix.include.find((item) => item.service === 'searxng');
 assert.ok(bitwarden, '缺少 bitwarden 服务');
 assert.ok(postgres16, '缺少 postgres16 服务');
+assert.ok(paradedbPg17, '缺少 paradedb-pg17 服务');
+assert.ok(redis7Alpine, '缺少 redis7-alpine 服务');
+assert.ok(rustfs, '缺少 rustfs 服务');
+assert.ok(minioMc, '缺少 minio-mc 服务');
+assert.ok(searxng, '缺少 searxng 服务');
 assert.equal(bitwarden.image_repository, 'ghcr.io/tianweilong/bitwarden');
 assert.equal(bitwarden.context, 'source/images/bitwarden');
 assert.equal(bitwarden.dockerfile, 'Dockerfile');
@@ -161,6 +186,12 @@ assert.equal(bitwarden.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(bitwarden.build_args, []);
 assert.equal(bitwarden.tag, 'latest');
 assert.equal(postgres16.image_repository, 'ghcr.io/tianweilong/postgres16');
+assert.equal(paradedbPg17.image_repository, 'ghcr.io/tianweilong/paradedb-pg17');
+assert.equal(paradedbPg17.context, 'source/images/paradedb-pg17');
+assert.equal(redis7Alpine.image_repository, 'ghcr.io/tianweilong/redis7-alpine');
+assert.equal(rustfs.image_repository, 'ghcr.io/tianweilong/rustfs');
+assert.equal(minioMc.image_repository, 'ghcr.io/tianweilong/minio-mc');
+assert.equal(searxng.image_repository, 'ghcr.io/tianweilong/searxng');
 
 const cliProxyApiMatrix = buildMatrix(['config/services.CLIProxyAPI.json'], {
   ...defaultEnv,
