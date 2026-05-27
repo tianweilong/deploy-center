@@ -32,10 +32,7 @@ assertContains(
 );
 
 for (const image of [
-  'ghcr.io/tianweilong/paradedb-pg17',
   'ghcr.io/tianweilong/redis7-alpine',
-  'ghcr.io/tianweilong/rustfs',
-  'ghcr.io/tianweilong/minio-mc',
   'ghcr.io/tianweilong/searxng',
 ]) {
   assertContains(await readRepoFile('config/services.docker-mirror.json'), image);

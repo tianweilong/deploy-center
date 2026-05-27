@@ -44,30 +44,9 @@
       "build_args": []
     },
     {
-      "service": "paradedb-pg17",
-      "image_repository": "ghcr.io/tianweilong/paradedb-pg17",
-      "context": "source/images/paradedb-pg17",
-      "dockerfile": "Dockerfile",
-      "build_args": []
-    },
-    {
       "service": "redis7-alpine",
       "image_repository": "ghcr.io/tianweilong/redis7-alpine",
       "context": "source/images/redis7-alpine",
-      "dockerfile": "Dockerfile",
-      "build_args": []
-    },
-    {
-      "service": "rustfs",
-      "image_repository": "ghcr.io/tianweilong/rustfs",
-      "context": "source/images/rustfs",
-      "dockerfile": "Dockerfile",
-      "build_args": []
-    },
-    {
-      "service": "minio-mc",
-      "image_repository": "ghcr.io/tianweilong/minio-mc",
-      "context": "source/images/minio-mc",
       "dockerfile": "Dockerfile",
       "build_args": []
     },
