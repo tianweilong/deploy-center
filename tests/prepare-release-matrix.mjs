@@ -161,19 +161,19 @@ try {
 const dockerMirrorMatrix = buildMatrix(['config/services.docker-mirror.json'], {
   ...defaultEnv,
   TARGET_SERVICES:
-    'postgres16,postgres17,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden,redis7-alpine,searxng',
+    'postgres16,postgres17,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden,redis7,searxng',
   SOURCE_TAG: 'latest',
 });
 assert.equal(dockerMirrorMatrix.include.length, 9, 'docker-mirror 应返回九个服务');
 const bitwarden = dockerMirrorMatrix.include.find((item) => item.service === 'bitwarden');
 const postgres16 = dockerMirrorMatrix.include.find((item) => item.service === 'postgres16');
 const postgres17 = dockerMirrorMatrix.include.find((item) => item.service === 'postgres17');
-const redis7Alpine = dockerMirrorMatrix.include.find((item) => item.service === 'redis7-alpine');
+const redis7 = dockerMirrorMatrix.include.find((item) => item.service === 'redis7');
 const searxng = dockerMirrorMatrix.include.find((item) => item.service === 'searxng');
 assert.ok(bitwarden, '缺少 bitwarden 服务');
 assert.ok(postgres16, '缺少 postgres16 服务');
 assert.ok(postgres17, '缺少 postgres17 服务');
-assert.ok(redis7Alpine, '缺少 redis7-alpine 服务');
+assert.ok(redis7, '缺少 redis7 服务');
 assert.ok(searxng, '缺少 searxng 服务');
 assert.equal(bitwarden.image_repository, 'ghcr.io/tianweilong/bitwarden');
 assert.equal(bitwarden.context, 'source/images/bitwarden');
@@ -184,7 +184,8 @@ assert.equal(bitwarden.tag, 'latest');
 assert.equal(postgres16.image_repository, 'ghcr.io/tianweilong/postgres16');
 assert.equal(postgres17.image_repository, 'ghcr.io/tianweilong/paradedb-pg17');
 assert.equal(postgres17.context, 'source/images/postgres17');
-assert.equal(redis7Alpine.image_repository, 'ghcr.io/tianweilong/redis7-alpine');
+assert.equal(redis7.image_repository, 'ghcr.io/tianweilong/redis7');
+assert.equal(redis7.context, 'source/images/redis7');
 assert.equal(searxng.image_repository, 'ghcr.io/tianweilong/searxng');
 
 const cliProxyApiMatrix = buildMatrix(['config/services.CLIProxyAPI.json'], {

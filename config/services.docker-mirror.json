@@ -51,9 +51,9 @@
       "build_args": []
     },
     {
-      "service": "redis7-alpine",
-      "image_repository": "ghcr.io/tianweilong/redis7-alpine",
-      "context": "source/images/redis7-alpine",
+      "service": "redis7",
+      "image_repository": "ghcr.io/tianweilong/redis7",
+      "context": "source/images/redis7",
       "dockerfile": "Dockerfile",
       "build_args": []
     },
