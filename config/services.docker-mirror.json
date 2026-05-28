@@ -9,6 +9,13 @@
       "build_args": []
     },
     {
+      "service": "postgres17",
+      "image_repository": "ghcr.io/tianweilong/paradedb-pg17",
+      "context": "source/images/postgres17",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
       "service": "azure-storage-azurite",
       "image_repository": "ghcr.io/tianweilong/azure-storage-azurite",
       "context": "source/images/azure-storage-azurite",
@@ -40,6 +47,20 @@
       "service": "bitwarden",
       "image_repository": "ghcr.io/tianweilong/bitwarden",
       "context": "source/images/bitwarden",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "redis7",
+      "image_repository": "ghcr.io/tianweilong/redis7",
+      "context": "source/images/redis7",
+      "dockerfile": "Dockerfile",
+      "build_args": []
+    },
+    {
+      "service": "searxng",
+      "image_repository": "ghcr.io/tianweilong/searxng",
+      "context": "source/images/searxng",
       "dockerfile": "Dockerfile",
       "build_args": []
     }

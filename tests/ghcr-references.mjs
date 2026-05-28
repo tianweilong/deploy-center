@@ -5,6 +5,8 @@ for (const file of [
   'docs/rollout.md',
   'config/services.vibe-kanban.json',
   'config/services.new-api.json',
+  'config/services.lobehub.json',
+  'config/services.docker-mirror.json',
 ]) {
   assertNotContains(await readRepoFile(file), 'ccr.ccs.tencentyun.com');
 }
@@ -24,6 +26,17 @@ assertContains(
   await readRepoFile('config/services.new-api.json'),
   'ghcr.io/tianweilong/new-api',
 );
+assertContains(
+  await readRepoFile('config/services.lobehub.json'),
+  'ghcr.io/tianweilong/lobehub',
+);
+
+for (const image of [
+  'ghcr.io/tianweilong/redis7',
+  'ghcr.io/tianweilong/searxng',
+]) {
+  assertContains(await readRepoFile('config/services.docker-mirror.json'), image);
+}
 
 assertContains(await readRepoFile('README.md'), 'GITHUB_TOKEN');
 assertContains(await readRepoFile('README.md'), 'read:packages');
