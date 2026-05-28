@@ -11,6 +11,10 @@ function buildMatrix(args, env) {
   );
 }
 
+function buildPlatformMatrix(configPath, env) {
+  return buildMatrix(['--output=build', configPath], env);
+}
+
 const defaultEnv = {
   DEFAULT_IMAGE_PLATFORMS: 'linux/amd64,linux/arm64',
 };
@@ -78,6 +82,33 @@ assert.equal(lobeHub.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(lobeHub.build_args, []);
 assert.equal(lobeHub.tag, 'v5.6.7');
 
+const lobeHubBuildMatrix = buildPlatformMatrix('config/services.lobehub.json', {
+  ...defaultEnv,
+  TARGET_SERVICES: 'lobehub',
+  SOURCE_TAG: 'v5.6.7',
+});
+assert.equal(lobeHubBuildMatrix.include.length, 2, 'lobehub 应拆成两个平台构建任务');
+assert.deepEqual(
+  lobeHubBuildMatrix.include.map((item) => [item.platform, item.runner]),
+  [
+    ['linux/amd64', 'ubuntu-latest'],
+    ['linux/arm64', 'ubuntu-24.04-arm'],
+  ],
+  'lobehub 平台 runner 映射不符合预期',
+);
+for (const item of lobeHubBuildMatrix.include) {
+  assert.equal(item.service, 'lobehub');
+  assert.equal(item.image_repository, 'ghcr.io/tianweilong/lobehub');
+  assert.equal(item.context, 'source');
+  assert.equal(item.dockerfile, 'Dockerfile');
+  assert.equal(item.tag, 'v5.6.7');
+  assert.equal(
+    item.digest_artifact_name,
+    `image-digest-lobehub--${item.platform_pair}`,
+    'digest artifact 名称应使用服务名和平台对',
+  );
+}
+
 const tempRoot = await createTempDir('deploy-center-matrix-');
 try {
   const overrideConfig = path.join(tempRoot, 'override.json');
@@ -111,6 +142,17 @@ try {
     overrideMatrix.include[0].platforms,
     'linux/arm64',
     '服务显式平台覆盖失效',
+  );
+
+  const overrideBuildMatrix = buildPlatformMatrix(overrideConfig, {
+    ...defaultEnv,
+    TARGET_SERVICES: 'vibe-kanban-relay',
+    SOURCE_TAG: 'v1.2.3',
+  });
+  assert.deepEqual(
+    overrideBuildMatrix.include.map((item) => [item.platform, item.runner]),
+    [['linux/arm64', 'ubuntu-24.04-arm']],
+    '显式单平台服务不应生成多余构建任务',
   );
 
   const dockerImagesConfig = path.join(tempRoot, 'docker-images.json');

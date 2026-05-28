@@ -20,10 +20,22 @@ assert.equal(
   'ubuntu-latest job 数量不符合预期',
 );
 for (const pattern of [
-  'docker/setup-qemu-action@v3',
   'docker/build-push-action@v6',
   'registry: ghcr.io',
-  'fromJSON(needs.prepare.outputs.matrix)',
+  'build_matrix: ${{ steps.matrix.outputs.build_matrix }}',
+  'manifest_matrix: ${{ steps.matrix.outputs.manifest_matrix }}',
+  'node scripts/prepare-release-matrix.mjs --output=build',
+  'node scripts/prepare-release-matrix.mjs --output=manifest',
+  'fromJSON(needs.prepare.outputs.build_matrix)',
+  'fromJSON(needs.prepare.outputs.manifest_matrix)',
+  'runs-on: ${{ matrix.runner }}',
+  'platforms: ${{ matrix.platform }}',
+  'push-by-digest=true',
+  '上传镜像 digest',
+  '下载镜像 digest',
+  'pattern: image-digest-${{ matrix.service }}--*',
+  '合并镜像 manifest',
+  'docker buildx imagetools create',
   'fail-fast: false',
   'linux/amd64,linux/arm64',
   'source_tag',
@@ -63,7 +75,6 @@ for (const pattern of [
   'node scripts/prepare-npm-publish-input.mjs source',
   'node scripts/build-npm-release-assets.mjs source',
   'node scripts/merge-desktop-manifest.mjs release-artifacts',
-  'node scripts/merge-tauri-updater-json.mjs release-artifacts',
   'node scripts/publish-npm-package.mjs',
   'NPM_DIST_TAG',
   'node-version: 24',
@@ -71,8 +82,11 @@ for (const pattern of [
   'uses: ./.github/actions/setup-node-pnpm',
   'uses: ./.github/actions/print-runner-info',
   'actions/setup-go@v5',
-  "hashFiles('source/go/go.mod') != ''",
-  'go-version-file: source/go/go.mod',
+  '检测 Go module 文件',
+  'source/go.mod',
+  'source/go/go.mod',
+  "steps.detect-go-module.outputs.path != ''",
+  'go-version-file: ${{ steps.detect-go-module.outputs.path }}',
   '安装 Tauri CLI',
   "env.NPM_PACKAGE_NAME == '@vino.tian/vibe-kanban' && matrix.target == 'darwin-arm64'",
   "cargo install tauri-cli --version '^2' --locked",
@@ -85,16 +99,10 @@ for (const pattern of [
   'NODE_OPTIONS: --max-old-space-size=6144',
   'BUILD_DESKTOP_BUNDLE:',
   'DESKTOP_RELEASE_MODE:',
-  'TAURI_SIGNING_PRIVATE_KEY:',
-  'TAURI_SIGNING_PRIVATE_KEY_PASSWORD:',
-  'TAURI_UPDATE_ENDPOINT:',
   'npm-artifacts/${{ matrix.target }}/*.app.tar.gz',
   'npm-artifacts/${{ matrix.target }}/*.AppImage.tar.gz',
   'npm-artifacts/${{ matrix.target }}/*-setup.exe',
-  'npm-artifacts/${{ matrix.target }}/*.sig',
   'npm-artifacts/${{ matrix.target }}/*-desktop-manifest-fragment.json',
-  'npm-artifacts/${{ matrix.target }}/*-tauri-updater-fragment.json',
-  'gh release view "${NPM_PACKAGE_NAME##*/}-updater"',
 ]) {
   assertContains(file, pattern);
 }
@@ -123,13 +131,14 @@ for (const pattern of [
   'TMPDIR="$(cygpath -m "$RUNNER_TEMP")"',
   '修补 Windows 源仓库打包脚本路径兼容性',
   'uses: ./source/.github/actions/setup-node',
+  'docker/setup-qemu-action@v3',
 ]) {
   assertNotContains(file, pattern);
 }
 
 assert.equal(
   [...file.matchAll(/^      - uses: actions\/checkout@v6$/gm)].length,
-  6,
+  7,
   'actions/checkout@v6 次数不符合预期',
 );
 assertNotContains(

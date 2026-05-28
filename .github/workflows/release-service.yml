@@ -74,7 +74,9 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      matrix: ${{ steps.matrix.outputs.manifest_matrix }}
+      build_matrix: ${{ steps.matrix.outputs.build_matrix }}
+      manifest_matrix: ${{ steps.matrix.outputs.manifest_matrix }}
       npm_matrix: ${{ steps.matrix.outputs.npm_matrix }}
       has_services: ${{ steps.targets.outputs.has_services }}
       has_npm: ${{ steps.targets.outputs.has_npm }}
@@ -163,28 +165,41 @@ jobs:
 
           if [ "${{ steps.targets.outputs.has_services }}" != 'true' ]; then
             echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'build_matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'manifest_matrix={"include":[]}' >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
+          build_matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
             SOURCE_TAG="${SOURCE_TAG}" \
             SOURCE_SHA="${SOURCE_SHA}" \
             BUILD_DATE="${BUILD_DATE}" \
-            node scripts/prepare-release-matrix.mjs "${{ steps.targets.outputs.service_config_path }}")
+            node scripts/prepare-release-matrix.mjs --output=build "${{ steps.targets.outputs.service_config_path }}")
+          manifest_matrix=$(TARGET_SERVICES="${{ steps.targets.outputs.target_services }}" \
+            SOURCE_TAG="${SOURCE_TAG}" \
+            SOURCE_SHA="${SOURCE_SHA}" \
+            BUILD_DATE="${BUILD_DATE}" \
+            node scripts/prepare-release-matrix.mjs --output=manifest "${{ steps.targets.outputs.service_config_path }}")
           {
             echo 'matrix<<EOF'
-            echo "$matrix"
+            echo "$manifest_matrix"
+            echo 'EOF'
+            echo 'build_matrix<<EOF'
+            echo "$build_matrix"
+            echo 'EOF'
+            echo 'manifest_matrix<<EOF'
+            echo "$manifest_matrix"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
     if: ${{ needs.prepare.outputs.has_services == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.build_matrix) }}
     steps:
       - uses: actions/checkout@v6
 
@@ -199,6 +214,67 @@ jobs:
       - uses: ./.github/actions/print-runner-info
         with:
           target-os: linux
+
+      - name: 配置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        name: 构建并推送平台镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ matrix.image_repository }},push-by-digest=true,name-canonical=true,push=true
+          build-args: ${{ join(matrix.build_args, '\n') }}
+
+      - name: 导出镜像 digest
+        run: |
+          set -euo pipefail
+          digest="${{ steps.build.outputs.digest }}"
+          if [ -z "${digest}" ]; then
+            echo '构建未返回镜像 digest。' >&2
+            exit 1
+          fi
+
+          rm -rf /tmp/digests
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: 上传镜像 digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.digest_artifact_name }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-image-manifest:
+    needs:
+      - prepare
+      - build
+    if: ${{ needs.prepare.outputs.has_services == 'true' && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.manifest_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/checkout-source
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          fetch-depth: 0
 
       - id: image-tags
         name: 生成镜像标签
@@ -220,9 +296,6 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: 配置 QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: 配置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -233,15 +306,49 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 构建并推送镜像
-        uses: docker/build-push-action@v6
+      - name: 下载镜像 digest
+        uses: actions/download-artifact@v4
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
-          platforms: ${{ matrix.platforms }}
-          push: true
-          tags: ${{ steps.image-tags.outputs.tags }}
-          build-args: ${{ join(matrix.build_args, '\n') }}
+          path: /tmp/digests
+          pattern: image-digest-${{ matrix.service }}--*
+          merge-multiple: true
+
+      - name: 合并镜像 manifest
+        env:
+          IMAGE_REPOSITORY: ${{ matrix.image_repository }}
+          IMAGE_TAGS: ${{ steps.image-tags.outputs.tags }}
+        run: |
+          set -euo pipefail
+          tag_args=()
+          while IFS= read -r image_tag; do
+            if [ -n "${image_tag}" ]; then
+              tag_args+=("-t" "${image_tag}")
+            fi
+          done <<< "${IMAGE_TAGS}"
+
+          if [ "${#tag_args[@]}" -eq 0 ]; then
+            echo '没有可用于 manifest 的镜像标签。' >&2
+            exit 1
+          fi
+
+          image_refs=()
+          while IFS= read -r digest_file; do
+            digest="sha256:$(basename "${digest_file}")"
+            image_refs+=("${IMAGE_REPOSITORY}@${digest}")
+          done < <(find /tmp/digests -maxdepth 1 -type f -print | sort)
+
+          if [ "${#image_refs[@]}" -eq 0 ]; then
+            echo '没有找到待合并的镜像 digest。' >&2
+            exit 1
+          fi
+
+          docker buildx imagetools create "${tag_args[@]}" "${image_refs[@]}"
+
+          while IFS= read -r image_tag; do
+            if [ -n "${image_tag}" ]; then
+              docker buildx imagetools inspect "${image_tag}" >/dev/null
+            fi
+          done <<< "${IMAGE_TAGS}"
 
   prepare-npm-publish-input:
     needs: prepare
