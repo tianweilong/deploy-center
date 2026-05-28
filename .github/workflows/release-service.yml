@@ -258,11 +258,23 @@ jobs:
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
           fetch-depth: 0
 
+      - name: 检测 Go module 文件
+        id: detect-go-module
+        shell: bash
+        run: |
+          if [ -f source/go.mod ]; then
+            echo "path=source/go.mod" >> "$GITHUB_OUTPUT"
+          elif [ -f source/go/go.mod ]; then
+            echo "path=source/go/go.mod" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 安装 Go
-        if: ${{ hashFiles('source/go/go.mod') != '' }}
+        if: ${{ steps.detect-go-module.outputs.path != '' }}
         uses: actions/setup-go@v5
         with:
-          go-version-file: source/go/go.mod
+          go-version-file: ${{ steps.detect-go-module.outputs.path }}
           cache: true
 
       - uses: ./.github/actions/setup-node-pnpm
@@ -321,11 +333,23 @@ jobs:
           token: ${{ secrets.SOURCE_REPO_TOKEN }}
           fetch-depth: 0
 
+      - name: 检测 Go module 文件
+        id: detect-go-module
+        shell: bash
+        run: |
+          if [ -f source/go.mod ]; then
+            echo "path=source/go.mod" >> "$GITHUB_OUTPUT"
+          elif [ -f source/go/go.mod ]; then
+            echo "path=source/go/go.mod" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 安装 Go
-        if: ${{ hashFiles('source/go/go.mod') != '' }}
+        if: ${{ steps.detect-go-module.outputs.path != '' }}
         uses: actions/setup-go@v5
         with:
-          go-version-file: source/go/go.mod
+          go-version-file: ${{ steps.detect-go-module.outputs.path }}
           cache: true
 
       - uses: ./.github/actions/setup-node-pnpm
