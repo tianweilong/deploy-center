@@ -42,7 +42,7 @@
 
 ### 脚本与测试
 
-- `scripts/prepare-release-matrix.mjs`：根据目标服务列表和环境变量生成镜像构建矩阵。
+- `scripts/prepare-release-matrix.mjs`：根据目标服务列表和环境变量生成镜像 manifest 矩阵或按平台拆分的构建矩阵。
 - `scripts/npm-release-common.mjs`：复用 npm 发布版本解析、包名校验和 Release 元数据上下文。
 - `scripts/prepare-npm-publish-input.mjs`：准备 `release-npm` 消费的发布输入目录。
 - `scripts/build-npm-release-assets.mjs`：构建多平台 npm Release 资产与 checksum。
@@ -100,9 +100,10 @@
 
 1. 检出当前仓库。
 2. 检出源仓库到 `source/`。
-3. 配置 QEMU 与 Docker Buildx。
+3. 按平台选择原生 GitHub 托管 Runner：`linux/amd64` 使用 `ubuntu-latest`，`linux/arm64` 使用 `ubuntu-24.04-arm`。
 4. 登录 `ghcr.io`。
-5. 按矩阵构建并推送镜像。
+5. 按平台构建并推送 digest 镜像。
+6. `merge-image-manifest` 任务下载同一服务的各平台 digest，并通过 `docker buildx imagetools create` 合并多架构 manifest。
 
 当前默认镜像平台为：
 
@@ -211,6 +212,10 @@ TARGET_SERVICES='vibe-kanban-remote,vibe-kanban-relay' \
 SOURCE_TAG='v1.2.3' \
 VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL='https://relay.example.com' \
 node scripts/prepare-release-matrix.mjs config/services.vibe-kanban.json
+
+TARGET_SERVICES='vibe-kanban-remote,vibe-kanban-relay' \
+SOURCE_TAG='v1.2.3' \
+node scripts/prepare-release-matrix.mjs --output=build config/services.vibe-kanban.json
 ```
 
 ## 7. GitHub 配置与外部依赖
