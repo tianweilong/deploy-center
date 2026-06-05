@@ -2,13 +2,6 @@
   "project": "docker-mirror",
   "services": [
     {
-      "service": "postgres16",
-      "image_repository": "ghcr.io/tianweilong/postgres16",
-      "context": "source/images/postgres16",
-      "dockerfile": "Dockerfile",
-      "build_args": []
-    },
-    {
       "service": "postgres17",
       "image_repository": "ghcr.io/tianweilong/paradedb-pg17",
       "context": "source/images/postgres17",

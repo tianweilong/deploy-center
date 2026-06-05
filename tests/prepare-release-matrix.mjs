@@ -203,17 +203,15 @@ try {
 const dockerMirrorMatrix = buildMatrix(['config/services.docker-mirror.json'], {
   ...defaultEnv,
   TARGET_SERVICES:
-    'postgres16,postgres17,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden,redis7,searxng',
+    'postgres17,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden,redis7,searxng',
   SOURCE_TAG: 'latest',
 });
-assert.equal(dockerMirrorMatrix.include.length, 9, 'docker-mirror 应返回九个服务');
+assert.equal(dockerMirrorMatrix.include.length, 8, 'docker-mirror 应返回八个服务');
 const bitwarden = dockerMirrorMatrix.include.find((item) => item.service === 'bitwarden');
-const postgres16 = dockerMirrorMatrix.include.find((item) => item.service === 'postgres16');
 const postgres17 = dockerMirrorMatrix.include.find((item) => item.service === 'postgres17');
 const redis7 = dockerMirrorMatrix.include.find((item) => item.service === 'redis7');
 const searxng = dockerMirrorMatrix.include.find((item) => item.service === 'searxng');
 assert.ok(bitwarden, '缺少 bitwarden 服务');
-assert.ok(postgres16, '缺少 postgres16 服务');
 assert.ok(postgres17, '缺少 postgres17 服务');
 assert.ok(redis7, '缺少 redis7 服务');
 assert.ok(searxng, '缺少 searxng 服务');
@@ -223,7 +221,6 @@ assert.equal(bitwarden.dockerfile, 'Dockerfile');
 assert.equal(bitwarden.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(bitwarden.build_args, []);
 assert.equal(bitwarden.tag, 'latest');
-assert.equal(postgres16.image_repository, 'ghcr.io/tianweilong/postgres16');
 assert.equal(postgres17.image_repository, 'ghcr.io/tianweilong/paradedb-pg17');
 assert.equal(postgres17.context, 'source/images/postgres17');
 assert.equal(redis7.image_repository, 'ghcr.io/tianweilong/redis7');
