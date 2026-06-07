@@ -22,7 +22,7 @@ const defaultEnv = {
 const matrix = buildMatrix(['config/services.vibe-kanban.json'], {
   ...defaultEnv,
   TARGET_SERVICES: 'vibe-kanban-remote,vibe-kanban-relay',
-  SOURCE_TAG: 'v1.2.3',
+  SOURCE_TAG: 'v2026.4.19-1116',
 });
 
 assert.equal(matrix.include.length, 2, '应返回两个服务');
@@ -36,12 +36,12 @@ assert.equal(remote.platforms, 'linux/amd64,linux/arm64');
 assert.equal(relay.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(remote.build_args, []);
 assert.deepEqual(relay.build_args, []);
-assert.equal(remote.tag, 'v1.2.3');
+assert.equal(remote.tag, 'v2026.4.19-1116');
 
 const newApiMatrix = buildMatrix(['config/services.new-api.json'], {
   ...defaultEnv,
   TARGET_SERVICES: 'new-api',
-  SOURCE_TAG: 'v2.3.4',
+  SOURCE_TAG: 'v2026.4.19-1117',
 });
 assert.equal(newApiMatrix.include.length, 1, 'new-api 应只返回一个服务');
 const newApi = newApiMatrix.include[0];
@@ -50,12 +50,12 @@ assert.equal(newApi.image_repository, 'ghcr.io/tianweilong/new-api');
 assert.equal(newApi.dockerfile, 'Dockerfile');
 assert.equal(newApi.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(newApi.build_args, []);
-assert.equal(newApi.tag, 'v2.3.4');
+assert.equal(newApi.tag, 'v2026.4.19-1117');
 
 const weMpRssMatrix = buildMatrix(['config/services.we-mp-rss.json'], {
   ...defaultEnv,
   TARGET_SERVICES: 'we-mp-rss',
-  SOURCE_TAG: 'v3.4.5',
+  SOURCE_TAG: 'v2026.4.19-1118',
 });
 assert.equal(weMpRssMatrix.include.length, 1, 'we-mp-rss 应只返回一个服务');
 const weMpRss = weMpRssMatrix.include[0];
@@ -65,12 +65,12 @@ assert.equal(weMpRss.context, 'source');
 assert.equal(weMpRss.dockerfile, 'Dockerfile');
 assert.equal(weMpRss.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(weMpRss.build_args, []);
-assert.equal(weMpRss.tag, 'v3.4.5');
+assert.equal(weMpRss.tag, 'v2026.4.19-1118');
 
 const lobeHubMatrix = buildMatrix(['config/services.lobehub.json'], {
   ...defaultEnv,
   TARGET_SERVICES: 'lobehub',
-  SOURCE_TAG: 'v5.6.7',
+  SOURCE_TAG: 'v2026.4.19-1119',
 });
 assert.equal(lobeHubMatrix.include.length, 1, 'lobehub 应只返回一个服务');
 const lobeHub = lobeHubMatrix.include[0];
@@ -80,12 +80,12 @@ assert.equal(lobeHub.context, 'source');
 assert.equal(lobeHub.dockerfile, 'Dockerfile');
 assert.equal(lobeHub.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(lobeHub.build_args, []);
-assert.equal(lobeHub.tag, 'v5.6.7');
+assert.equal(lobeHub.tag, 'v2026.4.19-1119');
 
 const lobeHubBuildMatrix = buildPlatformMatrix('config/services.lobehub.json', {
   ...defaultEnv,
   TARGET_SERVICES: 'lobehub',
-  SOURCE_TAG: 'v5.6.7',
+  SOURCE_TAG: 'v2026.4.19-1119',
 });
 assert.equal(lobeHubBuildMatrix.include.length, 2, 'lobehub 应拆成两个平台构建任务');
 assert.deepEqual(
@@ -101,7 +101,7 @@ for (const item of lobeHubBuildMatrix.include) {
   assert.equal(item.image_repository, 'ghcr.io/tianweilong/lobehub');
   assert.equal(item.context, 'source');
   assert.equal(item.dockerfile, 'Dockerfile');
-  assert.equal(item.tag, 'v5.6.7');
+  assert.equal(item.tag, 'v2026.4.19-1119');
   assert.equal(
     item.digest_artifact_name,
     `image-digest-lobehub--${item.platform_pair}`,
@@ -136,7 +136,7 @@ try {
   const overrideMatrix = buildMatrix([overrideConfig], {
     ...defaultEnv,
     TARGET_SERVICES: 'vibe-kanban-relay',
-    SOURCE_TAG: 'v1.2.3',
+    SOURCE_TAG: 'v2026.4.19-1120',
   });
   assert.equal(
     overrideMatrix.include[0].platforms,
@@ -147,7 +147,7 @@ try {
   const overrideBuildMatrix = buildPlatformMatrix(overrideConfig, {
     ...defaultEnv,
     TARGET_SERVICES: 'vibe-kanban-relay',
-    SOURCE_TAG: 'v1.2.3',
+    SOURCE_TAG: 'v2026.4.19-1120',
   });
   assert.deepEqual(
     overrideBuildMatrix.include.map((item) => [item.platform, item.runner]),
@@ -155,82 +155,14 @@ try {
     '显式单平台服务不应生成多余构建任务',
   );
 
-  const dockerImagesConfig = path.join(tempRoot, 'docker-images.json');
-  await writeTempFile(
-    dockerImagesConfig,
-    `${JSON.stringify(
-      {
-        project: 'docker-images',
-        services: [
-          {
-            service: 'image-a',
-            image_repository: 'ghcr.io/tianweilong/image-a',
-            context: 'source/images/image-a',
-            dockerfile: 'Dockerfile',
-            build_args: [],
-          },
-          {
-            service: 'image-b',
-            image_repository: 'ghcr.io/tianweilong/image-b',
-            context: 'source/images/image-b',
-            dockerfile: 'Dockerfile',
-            build_args: [],
-          },
-        ],
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  const dockerImagesMatrix = buildMatrix([dockerImagesConfig], {
-    ...defaultEnv,
-    TARGET_SERVICES: 'image-a,image-b',
-    SOURCE_TAG: 'latest',
-  });
-  assert.equal(dockerImagesMatrix.include.length, 2, 'docker-images 应返回两个服务');
-  const imageA = dockerImagesMatrix.include.find((item) => item.service === 'image-a');
-  const imageB = dockerImagesMatrix.include.find((item) => item.service === 'image-b');
-  assert.ok(imageA, '缺少 image-a 服务');
-  assert.ok(imageB, '缺少 image-b 服务');
-  assert.equal(imageA.context, 'source/images/image-a');
-  assert.equal(imageB.context, 'source/images/image-b');
-  assert.equal(imageA.tag, 'latest');
-  assert.equal(imageB.tag, 'latest');
 } finally {
   await removeDir(tempRoot);
 }
 
-const dockerMirrorMatrix = buildMatrix(['config/services.docker-mirror.json'], {
-  ...defaultEnv,
-  TARGET_SERVICES:
-    'postgres17,azure-storage-azurite,azure-cli,electricsql-electric,nginx,bitwarden,redis7,searxng',
-  SOURCE_TAG: 'latest',
-});
-assert.equal(dockerMirrorMatrix.include.length, 8, 'docker-mirror 应返回八个服务');
-const bitwarden = dockerMirrorMatrix.include.find((item) => item.service === 'bitwarden');
-const postgres17 = dockerMirrorMatrix.include.find((item) => item.service === 'postgres17');
-const redis7 = dockerMirrorMatrix.include.find((item) => item.service === 'redis7');
-const searxng = dockerMirrorMatrix.include.find((item) => item.service === 'searxng');
-assert.ok(bitwarden, '缺少 bitwarden 服务');
-assert.ok(postgres17, '缺少 postgres17 服务');
-assert.ok(redis7, '缺少 redis7 服务');
-assert.ok(searxng, '缺少 searxng 服务');
-assert.equal(bitwarden.image_repository, 'ghcr.io/tianweilong/bitwarden');
-assert.equal(bitwarden.context, 'source/images/bitwarden');
-assert.equal(bitwarden.dockerfile, 'Dockerfile');
-assert.equal(bitwarden.platforms, 'linux/amd64,linux/arm64');
-assert.deepEqual(bitwarden.build_args, []);
-assert.equal(bitwarden.tag, 'latest');
-assert.equal(postgres17.image_repository, 'ghcr.io/tianweilong/paradedb-pg17');
-assert.equal(postgres17.context, 'source/images/postgres17');
-assert.equal(redis7.image_repository, 'ghcr.io/tianweilong/redis7');
-assert.equal(redis7.context, 'source/images/redis7');
-assert.equal(searxng.image_repository, 'ghcr.io/tianweilong/searxng');
-
 const cliProxyApiMatrix = buildMatrix(['config/services.CLIProxyAPI.json'], {
   ...defaultEnv,
   TARGET_SERVICES: 'cli-proxy-api',
-  SOURCE_TAG: 'v4.5.6',
+  SOURCE_TAG: 'v2026.4.19-1121',
   SOURCE_SHA: 'abcdef1234567890',
   BUILD_DATE: '2026-03-26T12:34:56Z',
 });
@@ -242,8 +174,20 @@ assert.equal(cliProxyApi.context, 'source');
 assert.equal(cliProxyApi.dockerfile, 'Dockerfile');
 assert.equal(cliProxyApi.platforms, 'linux/amd64,linux/arm64');
 assert.deepEqual(cliProxyApi.build_args, [
-  'VERSION=v4.5.6',
+  'VERSION=v2026.4.19-1121',
   'COMMIT=abcdef1234567890',
   'BUILD_DATE=2026-03-26T12:34:56Z',
 ]);
-assert.equal(cliProxyApi.tag, 'v4.5.6');
+assert.equal(cliProxyApi.tag, 'v2026.4.19-1121');
+
+for (const oldTag of ['latest', 'v1.2.3', '2026.04.19.1']) {
+  assert.throws(
+    () => buildMatrix(['config/services.vibe-kanban.json'], {
+      ...defaultEnv,
+      TARGET_SERVICES: 'vibe-kanban-remote',
+      SOURCE_TAG: oldTag,
+    }),
+    /SOURCE_TAG 必须匹配 vYYYY\.M\.D-HHmm/,
+    `旧 tag ${oldTag} 不应继续触发镜像构建`,
+  );
+}

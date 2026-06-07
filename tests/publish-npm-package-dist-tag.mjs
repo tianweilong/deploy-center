@@ -114,10 +114,10 @@ test('publish-npm-package 在 publishTag 存在时附加 --tag', async () => {
   }
 });
 
-test('publish-npm-package 在 publishTag 为空时保持默认 latest', async () => {
+test('publish-npm-package 在 publishTag 为 latest 时显式附加 --tag latest', async () => {
   const tempRoot = await createTempDir('deploy-center-publish-latest-');
   try {
-    const commands = await runPublish(tempRoot, '');
+    const commands = await runPublish(tempRoot, 'latest');
     const publishCommand = commands.find((entry) => entry.command === 'publish');
 
     assert.ok(publishCommand, '期望执行 npm publish');
@@ -125,6 +125,8 @@ test('publish-npm-package 在 publishTag 为空时保持默认 latest', async ()
       'vino.tian-myte-0.1.4.tgz',
       '--access',
       'public',
+      '--tag',
+      'latest',
     ]);
   } finally {
     await removeDir(tempRoot);

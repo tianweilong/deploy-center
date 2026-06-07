@@ -1,0 +1,46 @@
+services:
+  vibe-kanban-remote:
+    sourceRepository: tianweilong/vibe-kanban
+    buildContext: .
+    dockerfilePath: crates/remote/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/vibe-kanban-remote
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  vibe-kanban-relay:
+    sourceRepository: tianweilong/vibe-kanban
+    buildContext: .
+    dockerfilePath: crates/relay-tunnel/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/vibe-kanban-relay
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  vibe-kanban-npm:
+    sourceRepository: tianweilong/vibe-kanban
+    npmPackageName: '@vino.tian/vibe-kanban'
+    npmPackageDir: npx-cli
+    npmVersionStrategy: calendar_tag
+    npmDistTag: latest
+    npmPlatforms:
+      - runner: ubuntu-latest
+        target: linux-x64
+        targetOs: linux
+        targetArch: x64
+        archiveExt: tar.gz
+      - runner: ubuntu-latest
+        target: linux-arm64
+        targetOs: linux
+        targetArch: arm64
+        archiveExt: tar.gz
+      - runner: windows-latest
+        target: win32-x64
+        targetOs: win32
+        targetArch: x64
+        archiveExt: zip
+      - runner: macos-15
+        target: darwin-arm64
+        targetOs: darwin
+        targetArch: arm64
+        archiveExt: tar.gz

@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import { isMainModule } from './module-entrypoint.mjs';
 
+const releaseTagPattern = /^v\d{4}\.\d{1,2}\.\d{1,2}-\d{4}$/;
+
 function readRequestedServices() {
   return process.env.TARGET_SERVICES.split(',')
     .map((item) => item.trim())
@@ -161,6 +163,9 @@ async function main() {
   }
   if (!process.env.SOURCE_TAG) {
     throw new Error('缺少 SOURCE_TAG');
+  }
+  if (!releaseTagPattern.test(process.env.SOURCE_TAG)) {
+    throw new Error('SOURCE_TAG 必须匹配 vYYYY.M.D-HHmm');
   }
 
   const matrix = await buildReleaseMatrix(configPath);
