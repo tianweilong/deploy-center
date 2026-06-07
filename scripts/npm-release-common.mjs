@@ -121,12 +121,12 @@ export function parseSourceTagVersion(sourceTag) {
 }
 
 export function parseCalendarTagVersion(sourceTag) {
-  const match = /^v(\d{4}\.\d{1,2}\.\d{1,2}-\d{4})$/.exec(sourceTag);
+  const match = /^v(\d{4}\.\d{1,2}\.\d{1,2})-(\d{4})$/.exec(sourceTag);
   if (!match) {
     throw new Error(`发布标签 ${sourceTag} 不符合 vYYYY.M.D-HHmm 格式。`);
   }
 
-  return match[1];
+  return `${match[1]}-${Number(match[2])}`;
 }
 
 export function resolvePublishVersion({

@@ -177,10 +177,11 @@ function resolveBuildArgs(buildArgs, variables, serviceName) {
 }
 
 export function resolveCalendarNpmVersion(sourceTag) {
-  if (!RELEASE_TAG_PATTERN.test(sourceTag)) {
+  const match = /^v(\d{4}\.\d{1,2}\.\d{1,2})-(\d{4})$/.exec(sourceTag);
+  if (!match) {
     throw new Error('source_tag must match vYYYY.M.D-HHmm');
   }
-  return sourceTag.slice(1);
+  return `${match[1]}-${Number(match[2])}`;
 }
 
 export function resolveReleaseRequest(config, payload) {

@@ -25,6 +25,7 @@ test('config/services.yaml 定义 deploy-center 当前发布服务', async () =>
     'vibe-kanban-relay',
     'we-mp-rss',
     'vibe-kanban-npm',
+    'myte',
   ]) {
     assert.match(content, new RegExp(`^  ${serviceName}:`, 'm'));
   }
@@ -137,6 +138,39 @@ test('resolve-release-request 解析 npm calendar 发布上下文', async () => 
   assert.equal(resolved.npm_dist_tag, 'latest');
   assert.equal(resolved.npm_publish_version, '2026.4.19-1116');
   assert.equal(resolved.npm_platforms.length, 4);
+});
+
+test('resolve-release-request 解析 myte npm calendar 发布上下文', async () => {
+  const resolved = await runResolver({
+    service_name: 'myte',
+    source_ref: 'refs/tags/v2026.4.19-1116',
+    source_sha: '0123456789abcdef0123456789abcdef01234567',
+    source_tag: 'v2026.4.19-1116',
+  });
+
+  assert.equal(resolved.source_repository, 'tianweilong/myte');
+  assert.equal(resolved.has_image, false);
+  assert.equal(resolved.has_npm, true);
+  assert.equal(resolved.npm_package_name, '@vino.tian/myte');
+  assert.equal(resolved.npm_package_dir, 'npm/myte');
+  assert.equal(resolved.npm_version_strategy, 'calendar_tag');
+  assert.equal(resolved.npm_dist_tag, 'latest');
+  assert.equal(resolved.npm_publish_version, '2026.4.19-1116');
+  assert.deepEqual(
+    resolved.npm_platforms.map((platform) => platform.target),
+    ['linux-x64', 'linux-arm64', 'win32-x64', 'darwin-arm64'],
+  );
+});
+
+test('resolve-release-request 将 calendar npm 版本归一化为合法 semver', async () => {
+  const resolved = await runResolver({
+    service_name: 'vibe-kanban-npm',
+    source_ref: 'refs/tags/v2026.4.19-0105',
+    source_sha: '0123456789abcdef0123456789abcdef01234567',
+    source_tag: 'v2026.4.19-0105',
+  });
+
+  assert.equal(resolved.npm_publish_version, '2026.4.19-105');
 });
 
 async function runResolverFailure(payload) {
