@@ -151,6 +151,31 @@ function normalizeArray(value, field) {
   throw new Error(`配置字段 ${field} 必须是数组`);
 }
 
+function resolveBuildArgValue(value, variables, serviceName, argName) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const envName = value.env;
+    if (!envName) {
+      throw new Error(`服务 ${serviceName} 的构建参数 ${argName} 缺少 env 字段`);
+    }
+    const resolved = variables[envName] ?? process.env[envName] ?? '';
+    if (String(resolved).trim() === '') {
+      throw new Error(`服务 ${serviceName} 的构建参数 ${argName} 缺少环境变量：${envName}`);
+    }
+    return String(resolved);
+  }
+  return String(value);
+}
+
+function resolveBuildArgs(buildArgs, variables, serviceName) {
+  const entries = Object.entries(buildArgs ?? {});
+  return Object.fromEntries(
+    entries.map(([argName, value]) => [
+      argName,
+      resolveBuildArgValue(value, variables, serviceName, argName),
+    ]),
+  );
+}
+
 export function resolveCalendarNpmVersion(sourceTag) {
   if (!RELEASE_TAG_PATTERN.test(sourceTag)) {
     throw new Error('source_tag must match vYYYY.M.D-HHmm');
@@ -169,6 +194,7 @@ export function resolveReleaseRequest(config, payload) {
   const sourceRef = requireText(payload, 'source_ref');
   const sourceSha = requireText(payload, 'source_sha');
   const sourceTag = requireText(payload, 'source_tag');
+  const buildDate = process.env.BUILD_DATE || new Date().toISOString();
   if (!RELEASE_TAG_PATTERN.test(sourceTag)) {
     throw new Error('source_tag must match vYYYY.M.D-HHmm');
   }
@@ -189,7 +215,11 @@ export function resolveReleaseRequest(config, payload) {
     resolved.dockerfile_path = requireServiceText(service, serviceName, 'dockerfilePath');
     resolved.ghcr_image_repository = requireServiceText(service, serviceName, 'ghcrImageRepository');
     resolved.platforms = normalizeArray(service.defaultPlatforms, 'defaultPlatforms');
-    resolved.build_args = service.buildArgs ?? {};
+    resolved.build_args = resolveBuildArgs(
+      service.buildArgs,
+      { SOURCE_TAG: sourceTag, SOURCE_SHA: sourceSha, BUILD_DATE: buildDate },
+      serviceName,
+    );
   }
 
   if (resolved.has_npm) {

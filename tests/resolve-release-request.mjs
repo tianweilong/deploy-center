@@ -9,9 +9,25 @@ test('config/services.yaml 定义 deploy-center 当前发布服务', async () =>
   const content = await readFile(path.join(repoRoot, 'config/services.yaml'), 'utf8');
 
   assert.match(content, /^services:\n/m);
-  assert.match(content, /^  vibe-kanban-remote:/m);
-  assert.match(content, /^  vibe-kanban-relay:/m);
-  assert.match(content, /^  vibe-kanban-npm:/m);
+  for (const serviceName of [
+    'cli-proxy-api',
+    'postgres17',
+    'azure-storage-azurite',
+    'azure-cli',
+    'electricsql-electric',
+    'nginx',
+    'bitwarden',
+    'redis7',
+    'searxng',
+    'lobehub',
+    'new-api',
+    'vibe-kanban-remote',
+    'vibe-kanban-relay',
+    'we-mp-rss',
+    'vibe-kanban-npm',
+  ]) {
+    assert.match(content, new RegExp(`^  ${serviceName}:`, 'm'));
+  }
 });
 
 async function runResolver(payload) {

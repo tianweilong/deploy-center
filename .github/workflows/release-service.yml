@@ -41,6 +41,7 @@ jobs:
       service_request: ${{ steps.resolve.outputs.service_request }}
       has_image: ${{ steps.resolve.outputs.has_image }}
       has_npm: ${{ steps.resolve.outputs.has_npm }}
+      image_matrix: ${{ steps.resolve.outputs.image_matrix }}
       npm_matrix: ${{ steps.resolve.outputs.npm_matrix }}
     steps:
       - uses: actions/checkout@v6
@@ -57,7 +58,8 @@ jobs:
             "source_tag": "${SOURCE_TAG}"
           }
           JSON
-          node scripts/resolve-release-request.mjs config/services.yaml /tmp/release-input.json > /tmp/service-request.json
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            node scripts/resolve-release-request.mjs config/services.yaml /tmp/release-input.json > /tmp/service-request.json
           {
             echo 'service_request<<EOF'
             cat /tmp/service-request.json
@@ -66,18 +68,36 @@ jobs:
           node <<'NODE' >> "${GITHUB_OUTPUT}"
           const fs = require('node:fs');
           const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
+          const runnerForPlatform = (platform) => {
+            if (platform === 'linux/amd64') return 'ubuntu-latest';
+            if (platform === 'linux/arm64') return 'ubuntu-24.04-arm';
+            throw new Error(`不支持的镜像平台：${platform}`);
+          };
+          const imageMatrix = {
+            include: request.has_image
+              ? request.platforms.map((platform) => ({
+                  platform,
+                  platform_pair: platform.replaceAll('/', '-'),
+                  runner: runnerForPlatform(platform),
+                }))
+              : [],
+          };
           console.log(`has_image=${request.has_image}`);
           console.log(`has_npm=${request.has_npm}`);
+          console.log(`image_matrix=${JSON.stringify(imageMatrix)}`);
           console.log(`npm_matrix=${JSON.stringify({ include: request.npm_platforms ?? [] })}`);
           NODE
 
   build-and-push-ghcr:
     needs: prepare
     if: ${{ needs.prepare.outputs.has_image == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.image_matrix) }}
     steps:
       - uses: actions/checkout@v6
 
@@ -91,12 +111,12 @@ jobs:
           const fs = require('node:fs');
           const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
           const outputs = {
+            service_name: request.service_name,
             source_repository: request.source_repository,
             build_context: request.build_context,
             dockerfile_path: request.dockerfile_path,
             ghcr_image_repository: request.ghcr_image_repository,
             image_tag: request.image_tag,
-            platforms: request.platforms.join(','),
             build_args_json: JSON.stringify(request.build_args ?? {}),
           };
           for (const [key, value] of Object.entries(outputs)) {
@@ -123,29 +143,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 配置 QEMU
-        if: ${{ contains(steps.image-env.outputs.platforms, 'linux/arm64') }}
-        uses: docker/setup-qemu-action@v3
-
       - name: 配置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 构建并推送 GHCR 镜像
+      - id: build
+        name: 构建并推送平台镜像 digest
         working-directory: source
         env:
           SOURCE_REPOSITORY: ${{ steps.image-env.outputs.source_repository }}
           BUILD_CONTEXT: ${{ steps.image-env.outputs.build_context }}
           DOCKERFILE_PATH: ${{ steps.image-env.outputs.dockerfile_path }}
           GHCR_IMAGE_REPOSITORY: ${{ steps.image-env.outputs.ghcr_image_repository }}
-          IMAGE_TAG: ${{ steps.image-env.outputs.image_tag }}
-          PLATFORMS: ${{ steps.image-env.outputs.platforms }}
           BUILD_ARGS_JSON: ${{ steps.image-env.outputs.build_args_json }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          docker_tags=(
-            -t "${GHCR_IMAGE_REPOSITORY}:${IMAGE_TAG}"
-            -t "${GHCR_IMAGE_REPOSITORY}:latest"
-          )
           mapfile -t docker_build_args < <(BUILD_ARGS_JSON="${BUILD_ARGS_JSON}" node <<'NODE'
           const buildArgs = JSON.parse(process.env.BUILD_ARGS_JSON || '{}');
           for (const [key, value] of Object.entries(buildArgs)) {
@@ -157,11 +169,102 @@ jobs:
           docker buildx build \
             "${docker_build_args[@]}" \
             --label "org.opencontainers.image.source=https://github.com/${SOURCE_REPOSITORY}" \
-            --platform "${PLATFORMS}" \
+            --platform "${PLATFORM}" \
             -f "${DOCKERFILE_PATH}" \
-            "${docker_tags[@]}" \
-            --push \
+            --output "type=image,name=${GHCR_IMAGE_REPOSITORY},push-by-digest=true,name-canonical=true,push=true" \
+            --metadata-file /tmp/build-metadata.json \
             "${BUILD_CONTEXT}"
+          digest=$(node <<'NODE'
+          const fs = require('node:fs');
+          const metadata = JSON.parse(fs.readFileSync('/tmp/build-metadata.json', 'utf8'));
+          process.stdout.write(metadata['containerimage.digest'] || '');
+          NODE
+          )
+          if [ -z "${digest}" ]; then
+            echo '构建未返回镜像 digest。' >&2
+            exit 1
+          fi
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: 导出镜像 digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/digests
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: 上传镜像 digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-digest-${{ steps.image-env.outputs.service_name }}--${{ matrix.platform_pair }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-ghcr-manifest:
+    needs:
+      - prepare
+      - build-and-push-ghcr
+    if: ${{ needs.prepare.outputs.has_image == 'true' && needs.build-and-push-ghcr.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - id: image-env
+        name: 解析镜像 manifest 环境
+        env:
+          SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
+        run: |
+          printf '%s\n' "${SERVICE_REQUEST}" > /tmp/service-request.json
+          node <<'NODE' >> "${GITHUB_OUTPUT}"
+          const fs = require('node:fs');
+          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
+          console.log(`service_name=${request.service_name}`);
+          console.log(`ghcr_image_repository=${request.ghcr_image_repository}`);
+          console.log(`image_tag=${request.image_tag}`);
+          NODE
+
+      - name: 登录 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 配置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 下载镜像 digest
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: image-digest-${{ steps.image-env.outputs.service_name }}--*
+          merge-multiple: true
+
+      - name: 合并 GHCR manifest
+        env:
+          GHCR_IMAGE_REPOSITORY: ${{ steps.image-env.outputs.ghcr_image_repository }}
+          IMAGE_TAG: ${{ steps.image-env.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          image_refs=()
+          while IFS= read -r digest_file; do
+            digest="sha256:$(basename "${digest_file}")"
+            image_refs+=("${GHCR_IMAGE_REPOSITORY}@${digest}")
+          done < <(find /tmp/digests -maxdepth 1 -type f -print | sort)
+
+          if [ "${#image_refs[@]}" -eq 0 ]; then
+            echo '没有找到待合并的镜像 digest。' >&2
+            exit 1
+          fi
+
+          docker buildx imagetools create \
+            -t "${GHCR_IMAGE_REPOSITORY}:${IMAGE_TAG}" \
+            -t "${GHCR_IMAGE_REPOSITORY}:latest" \
+            "${image_refs[@]}"
 
   prepare-npm-publish-input:
     needs: prepare
