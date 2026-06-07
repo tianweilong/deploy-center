@@ -6,7 +6,7 @@
 
 当前主要职责只有两类：
 
-- 根据服务配置生成镜像构建矩阵，从源仓库检出指定提交并发布镜像到 GHCR。
+- 根据中心化服务配置解析发布请求，从源仓库检出指定提交并发布镜像到 GHCR。
 - 在需要时构建多平台 npm 资产、创建 GitHub Release，并发布轻量 npm 包。
 
 如果把当前链路压缩成一句话：**源仓库负责触发，这个仓库负责正式发布。**
@@ -15,18 +15,18 @@
 
 第一次接手本仓库时，建议按以下顺序阅读：
 
-1. `README.md`：快速了解仓库用途与必需配置。
+1. `README.md`：快速了解仓库用途、发布输入、Secrets 与版本策略。
 2. `docs/architecture.md`：了解整体架构背景。
 3. `docs/rollout.md`：查看发布前置条件。
-4. `.github/workflows/release-service.yml`：理解实际发布执行路径。
-5. `config/services.vibe-kanban.json`：理解服务镜像构建配置。
+4. `config/services.yaml`：理解服务、镜像和 npm 发布配置。
+5. `.github/workflows/release-service.yml`：理解实际发布执行路径。
 6. `tests/*.mjs`：查看当前 workflow 的回归约束。
 
 ## 3. 目录结构与职责
 
 ### 根目录
 
-- `README.md`：仓库简介、Secrets、变量与发布说明。
+- `README.md`：仓库简介、Secrets、发布输入与 tag 策略说明。
 - `.gitignore`：忽略本地环境文件与临时文件。
 
 ### CI / 发布工作流
@@ -36,19 +36,18 @@
 
 ### 配置文件
 
-- `config/services.vibe-kanban.json`：`vibe-kanban` 服务镜像的构建配置。
-- `config/services.new-api.json`：`new-api` 服务镜像的构建配置。
+- `config/services.yaml`：发布工作流的唯一服务配置入口，包含源码仓、镜像构建、GHCR 仓库、npm 包和 npm 平台配置。
 - `services/registry.yaml`：服务登记信息；当前不是发布工作流的直接输入，但可作为服务清单参考。
 
 ### 脚本与测试
 
-- `scripts/prepare-release-matrix.mjs`：根据目标服务列表和环境变量生成镜像 manifest 矩阵或按平台拆分的构建矩阵。
+- `scripts/resolve-release-request.mjs`：读取发布 payload 和 `config/services.yaml`，输出 workflow 消费的镜像/npm 发布上下文。
 - `scripts/npm-release-common.mjs`：复用 npm 发布版本解析、包名校验和 Release 元数据上下文。
 - `scripts/prepare-npm-publish-input.mjs`：准备 `release-npm` 消费的发布输入目录。
 - `scripts/build-npm-release-assets.mjs`：构建多平台 npm Release 资产与 checksum。
 - `scripts/publish-npm-package.mjs`：消费发布输入目录并通过 Trusted Publishing 发布轻量 npm 包。
 - `scripts/merge-release-checksums.mjs`：合并多平台资产生成的校验文件。
-- `tests/*.mjs`：覆盖工作流结构、矩阵生成、npm 产物和发布约束。
+- `tests/*.mjs`：覆盖工作流结构、请求解析、npm 产物和发布约束。
 
 ### 未来代理协议
 
@@ -64,46 +63,39 @@
 
 `.github/workflows/release-service.yml` 支持两种触发方式：
 
-- `repository_dispatch`
-- `workflow_dispatch`
+- `repository_dispatch`，事件类型为 `deploy-center-release`。
+- `workflow_dispatch`，用于手动触发单个服务发布。
 
 输入最终归一到以下环境变量：
 
-- `SOURCE_REPOSITORY`
+- `SERVICE_NAME`
 - `SOURCE_REF`
 - `SOURCE_SHA`
 - `SOURCE_TAG`
-- `RELEASE_TARGETS`
-- `NPM_PACKAGE_NAME`
-- `NPM_PACKAGE_DIR`
-- `NPM_VERSION_STRATEGY`
-- `NPM_BASE_VERSION_FILE`
-- `NPM_VERSION_PATCH_FACTOR`
+
+`SOURCE_TAG` 必须匹配 `vYYYY.M.D-HHmm`，例如 `v2026.4.19-1116`。`latest`、`vX.Y.Z` 和 `2026.04.19.1` 这类旧格式会被拒绝。
 
 ### 4.2 prepare 阶段
 
 `prepare` 任务运行在 GitHub 托管的 `ubuntu-latest` Runner 上，负责：
 
-1. 校验发布输入。
-2. 解析 `release_targets`。
-3. 生成服务镜像矩阵。
-4. 生成 npm 多平台矩阵。
+1. 将发布输入写入临时 payload。
+2. 调用 `scripts/resolve-release-request.mjs config/services.yaml /tmp/release-input.json`。
+3. 按服务配置输出镜像构建上下文或 npm 发布上下文。
+4. 为镜像服务生成平台矩阵，为 npm 服务生成 npm 平台矩阵。
 
-其中 `release_targets` 当前的规则是：
-
-- `npm` 仍然表示启用 npm 发布链路
-- 其他非空值一律按 service 名处理，并在对应的 `config/services.<repo>.json` 中校验
+当前不再解析历史的多目标字段或分散 JSON 服务配置。每次发布只通过 `SERVICE_NAME` 指定一个 `config/services.yaml` 中的服务。
 
 ### 4.3 build 阶段
 
-`build` 任务负责构建并推送服务镜像，主要过程如下：
+`build-and-push-ghcr` 任务负责构建并推送服务镜像，主要过程如下：
 
 1. 检出当前仓库。
 2. 检出源仓库到 `source/`。
 3. 按平台选择原生 GitHub 托管 Runner：`linux/amd64` 使用 `ubuntu-latest`，`linux/arm64` 使用 `ubuntu-24.04-arm`。
 4. 登录 `ghcr.io`。
 5. 按平台构建并推送 digest 镜像。
-6. `merge-image-manifest` 任务下载同一服务的各平台 digest，并通过 `docker buildx imagetools create` 合并多架构 manifest。
+6. `merge-ghcr-manifest` 任务下载同一服务的各平台 digest，并通过 `docker buildx imagetools create` 合并多架构 manifest。
 
 当前默认镜像平台为：
 
@@ -112,12 +104,14 @@
 
 镜像 tag 策略如下：
 
-- 始终发布 `${SOURCE_TAG}`。
-- 当 `${SOURCE_TAG}` 是最新正式语义化版本时，同时发布 `latest`。
+- 始终发布 `${SOURCE_TAG}`，作为不可变正式发布 tag。
+- 同时发布 `latest`，方便 `docker-compose.yaml` 继续固定写 `latest` 并拉取最新镜像。
+
+当前只执行 `build-and-push-ghcr`，不执行 ACR mirror。
 
 ### 4.4 npm 发布阶段
 
-当 `release_targets` 包含 `npm` 时，工作流会拆成三个阶段：
+当 `SERVICE_NAME` 指向 npm 服务时，工作流会拆成三个阶段：
 
 - `release-npm-assets`
 - `release-github-release`
@@ -132,9 +126,11 @@
 
 `release-github-release` 会在当前仓库创建 GitHub Release，并上传各平台产物；`release-npm` 再发布轻量 npm 包。
 
+`vYYYY.M.D-HHmm` 会按 `calendar_tag` 策略转换为合法 npm 版本 `YYYY.M.D-HHmm`。例如 `v2026.4.19-1116` 发布为 npm 版本 `2026.4.19-1116`。该版本在 npm 语义中属于 prerelease，本仓库按内部工具约定显式使用 `--tag latest`，让 `npm install <pkg>` 和 `npx <pkg>` 默认拿到最新发布。
+
 ### 4.5 当前边界
 
-`release-service` 已不再包含 `update-state` 阶段，也不会回写任何 `environments/*` 或 `deployment.yaml`。
+`release-service` 暂不包含 Lindos 的 candidate release 更新，也不会触发测试环境部署。
 
 当前仓库只负责：
 
@@ -144,24 +140,33 @@
 
 ## 5. 关键配置文件说明
 
-### 5.1 `config/services.vibe-kanban.json`
+### 5.1 `config/services.yaml`
 
-这是当前 `vibe-kanban` 发布链路真正依赖的构建配置。每个服务至少包含：
+`config/services.yaml` 是当前发布链路唯一依赖的服务配置。每个服务以服务名为 key，并按需要声明镜像或 npm 发布字段。
 
-- `service`
-- `image_repository`
-- `context`
-- `dockerfile`
-- `build_args`
+镜像服务常用字段：
 
-`platforms` 是可选字段；未配置时回退到 workflow 默认值。
+- `sourceRepository`：源仓库，例如 `tianweilong/vibe-kanban`。
+- `buildContext`：传给 Docker 的构建上下文，相对源仓库根目录。
+- `dockerfilePath`：Dockerfile 路径，相对源仓库根目录。
+- `ghcrImageRepository`：GHCR 目标镜像仓库。
+- `defaultPlatforms`：镜像平台列表，当前只支持 `linux/amd64` 和 `linux/arm64`。
+- `buildArgs`：可选构建参数，可写固定值，也可用 `{ env: SOURCE_TAG }` 读取解析器内置环境。
 
-对于使用 `images/<目录名>/Dockerfile` 结构的公共镜像仓库，也建议单独新增一份 `config/services.<repo>.json`，并遵循同一套配置格式：
+npm 服务常用字段：
 
-- `service`：直接使用目录名，例如 `image-a`
-- `context`：写成 `source/images/<目录名>`
-- `dockerfile`：固定为 `Dockerfile`
-- `image_repository`：对应 GHCR 目标地址
+- `sourceRepository`：源仓库。
+- `npmPackageName`：npm 包名。
+- `npmPackageDir`：源仓库内 npm 包目录。
+- `npmVersionStrategy`：当前使用 `calendar_tag`。
+- `npmDistTag`：当前内部工具约定为 `latest`。
+- `npmPlatforms`：npm 多平台资产构建矩阵。
+
+对于使用 `images/<目录名>/Dockerfile` 结构的公共镜像仓库，也直接在 `config/services.yaml` 新增服务项：
+
+- `buildContext`：写成 `images/<目录名>`。
+- `dockerfilePath`：写成 `images/<目录名>/Dockerfile`。
+- `ghcrImageRepository`：写成对应 GHCR 目标地址。
 
 ### 5.2 `services/registry.yaml`
 
@@ -182,40 +187,43 @@
 
 ```bash
 ruby -e "require 'yaml'; Dir['**/*.yaml'].each { |f| YAML.load_file(f); puts f }"
-node --check scripts/prepare-release-matrix.mjs
+node --check scripts/resolve-release-request.mjs
 node --check scripts/npm-release-common.mjs
 node --check scripts/prepare-npm-publish-input.mjs
 node --check scripts/build-npm-release-assets.mjs
 node --check scripts/publish-npm-package.mjs
 node --check scripts/merge-release-checksums.mjs
+node --check scripts/merge-tauri-updater-json.mjs
+node --check scripts/release-meta.mjs
+node --check scripts/validate-npm-build-contract.mjs
 ```
 
 ### 6.2 运行回归测试
 
 ```bash
-node tests/prepare-release-matrix.mjs
-node tests/release-workflow.mjs
-node tests/ghcr-references.mjs
-node tests/localization-language.mjs
+node --test tests/resolve-release-request.mjs tests/ghcr-references.mjs tests/localization-language.mjs tests/release-workflow.mjs tests/npm-release-workflow.mjs
 ```
 
 这些测试主要覆盖：
 
-- 构建矩阵生成是否正确。
+- 发布请求解析是否符合 `service_name + source_tag` 模型。
 - 发布工作流是否仍符合当前 GHCR / npm 发布方案。
-- 仓库中是否残留旧镜像仓库引用或过时英文文案。
+- 仓库中是否残留旧镜像仓库引用、旧矩阵脚本依赖或过时英文文案。
 
-### 6.3 本地生成发布矩阵
+### 6.3 本地解析发布请求
 
 ```bash
-TARGET_SERVICES='vibe-kanban-remote,vibe-kanban-relay' \
-SOURCE_TAG='v1.2.3' \
-VIBE_KANBAN_REMOTE_VITE_RELAY_API_BASE_URL='https://relay.example.com' \
-node scripts/prepare-release-matrix.mjs config/services.vibe-kanban.json
+cat > /tmp/release-input.json <<'JSON'
+{
+  "service_name": "vibe-kanban-remote",
+  "source_ref": "refs/tags/v2026.4.19-1116",
+  "source_sha": "0123456789abcdef0123456789abcdef01234567",
+  "source_tag": "v2026.4.19-1116"
+}
+JSON
 
-TARGET_SERVICES='vibe-kanban-remote,vibe-kanban-relay' \
-SOURCE_TAG='v1.2.3' \
-node scripts/prepare-release-matrix.mjs --output=build config/services.vibe-kanban.json
+BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  node scripts/resolve-release-request.mjs config/services.yaml /tmp/release-input.json
 ```
 
 ## 7. GitHub 配置与外部依赖
@@ -243,9 +251,9 @@ node scripts/prepare-release-matrix.mjs --output=build config/services.vibe-kanb
 
 建议按下面顺序操作：
 
-1. 在对应的 `config/services.*.json` 中增加构建配置。
+1. 在 `config/services.yaml` 中增加服务配置。
 2. 若需要服务盘点信息，再同步 `services/registry.yaml`。
-3. 若新服务有额外 build args，确保仓库变量也已创建。
+3. 若新服务有额外 build args，确保解析器能提供对应环境值，或在服务配置中写入固定值。
 4. 补充或更新 `tests/*.mjs`。
 5. 运行基础校验与回归测试。
 
@@ -253,22 +261,24 @@ node scripts/prepare-release-matrix.mjs --output=build config/services.vibe-kanb
 
 1. 源仓库维护 `images/<目录名>/Dockerfile` 结构。
 2. 源仓库在 `main` 分支变更后自行识别变更目录。
-3. 源仓库把变更目录名列表直接作为 `release_targets` 传给 `deploy-center`。
+3. 源仓库把变更目录名映射为 `config/services.yaml` 中的 `SERVICE_NAME` 后触发 `deploy-center`。
 4. 若没有任何 `images/` 目录变化，则不触发发布。
 
 ### 8.2 修改镜像构建逻辑
 
 重点检查：
 
-- `config/services.*.json`
+- `config/services.yaml`
+- `scripts/resolve-release-request.mjs`
 - `.github/workflows/release-service.yml`
-- `tests/prepare-release-matrix.mjs`
+- `tests/resolve-release-request.mjs`
 - `tests/release-workflow.mjs`
 
 ### 8.3 修改 npm 发布逻辑
 
 重点检查：
 
+- `config/services.yaml`
 - `scripts/npm-release-common.mjs`
 - `scripts/prepare-npm-publish-input.mjs`
 - `scripts/build-npm-release-assets.mjs`
@@ -282,6 +292,6 @@ node scripts/prepare-release-matrix.mjs --output=build config/services.vibe-kanb
 记住下面四句话就够了：
 
 1. **源仓库负责触发，这个仓库负责发布。**
-2. **镜像发布到 GHCR。**
-3. **npm 通过 GitHub Release 资产分发多平台 bundle。**
-4. **当前仓库不再维护部署状态目录。**
+2. **所有服务配置集中在 `config/services.yaml`。**
+3. **镜像发布 `${SOURCE_TAG}` 和 `latest` 到 GHCR。**
+4. **当前仓库暂不更新 candidate release，也不触发测试环境部署。**

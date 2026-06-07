@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { createTempDir, removeDir, repoRoot, runNode } from './helpers.mjs';
@@ -28,6 +28,15 @@ test('config/services.yaml 定义 deploy-center 当前发布服务', async () =>
   ]) {
     assert.match(content, new RegExp(`^  ${serviceName}:`, 'm'));
   }
+});
+
+test('旧服务配置和矩阵脚本已移除', async () => {
+  const configEntries = await readdir(path.join(repoRoot, 'config'));
+  assert.deepEqual(
+    configEntries.filter((entry) => /^services\..*\.json$/.test(entry)).sort(),
+    [],
+  );
+  await assert.rejects(() => stat(path.join(repoRoot, 'scripts/prepare-release-matrix.mjs')));
 });
 
 async function runResolver(payload) {
