@@ -1,43 +1,27 @@
-import { assertContains, assertNotContains, readRepoFile } from './helpers.mjs';
+import { assertContains, readRepoFile } from './helpers.mjs';
 
-for (const file of [
-  'README.md',
-  'docs/rollout.md',
-  'config/services.vibe-kanban.json',
-  'config/services.new-api.json',
-  'config/services.lobehub.json',
-  'config/services.docker-mirror.json',
-]) {
-  assertNotContains(await readRepoFile(file), 'ccr.ccs.tencentyun.com');
-}
-
-assertNotContains(await readRepoFile('README.md'), 'TENCENT_REGISTRY');
-assertNotContains(await readRepoFile('docs/rollout.md'), 'TENCENT_REGISTRY');
-
-assertContains(
-  await readRepoFile('config/services.vibe-kanban.json'),
-  'ghcr.io/tianweilong/vibe-kanban-remote',
-);
-assertContains(
-  await readRepoFile('config/services.vibe-kanban.json'),
-  'ghcr.io/tianweilong/vibe-kanban-relay',
-);
-assertContains(
-  await readRepoFile('config/services.new-api.json'),
-  'ghcr.io/tianweilong/new-api',
-);
-assertContains(
-  await readRepoFile('config/services.lobehub.json'),
-  'ghcr.io/tianweilong/lobehub',
-);
+const servicesConfig = await readRepoFile('config/services.yaml');
 
 for (const image of [
+  'ghcr.io/tianweilong/vibe-kanban-remote',
+  'ghcr.io/tianweilong/vibe-kanban-relay',
+  'ghcr.io/tianweilong/new-api',
+  'ghcr.io/tianweilong/lobehub',
+  'ghcr.io/tianweilong/paradedb-pg17',
+  'ghcr.io/tianweilong/azure-storage-azurite',
+  'ghcr.io/tianweilong/azure-cli',
+  'ghcr.io/tianweilong/electricsql-electric',
+  'ghcr.io/tianweilong/nginx',
+  'ghcr.io/tianweilong/bitwarden',
   'ghcr.io/tianweilong/redis7',
   'ghcr.io/tianweilong/searxng',
+  'ghcr.io/tianweilong/we-mp-rss',
+  'ghcr.io/tianweilong/cli-proxy-api',
 ]) {
-  assertContains(await readRepoFile('config/services.docker-mirror.json'), image);
+  assertContains(servicesConfig, image);
 }
 
-assertContains(await readRepoFile('README.md'), 'GITHUB_TOKEN');
-assertContains(await readRepoFile('README.md'), 'read:packages');
+assertContains(await readRepoFile('README.md'), 'ghcr.io');
+assertContains(await readRepoFile('README.md'), 'packages: write');
+assertContains(await readRepoFile('docs/architecture.md'), 'GitHub Container Registry');
 assertContains(await readRepoFile('docs/rollout.md'), 'read:packages');

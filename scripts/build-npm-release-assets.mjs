@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { copyFile, rm, stat } from 'node:fs/promises';
+import { copyFile, readFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
 import {
   buildDesktopManifestFragment,
   buildDesktopReleaseAssetName,
+  buildTauriUpdaterFragment,
   copyManifestFilesToStage,
   createPlatformArchive,
   findDesktopBundleArtifact,
@@ -114,6 +115,19 @@ async function main() {
     );
     checksumTargets.push(stagedDesktopAssetPath);
 
+    const signaturePath = path.join(desktopBundleDir, `${desktopBundle.file}.sig`);
+    let signature = '';
+    try {
+      signature = (await readFile(signaturePath, 'utf8')).trim();
+    } catch {
+      signature = '';
+    }
+    if (signature) {
+      const stagedSignaturePath = `${stagedDesktopAssetPath}.sig`;
+      await copyFile(signaturePath, stagedSignaturePath);
+      checksumTargets.push(stagedSignaturePath);
+    }
+
     const desktopManifestFragment = buildDesktopManifestFragment({
       releaseTag: context.releaseTag,
       version: context.publishVersion,
@@ -127,6 +141,19 @@ async function main() {
       path.join(artifactDir, `${context.releaseTag}-desktop-manifest-fragment.json`),
       desktopManifestFragment,
     );
+    if (signature) {
+      await writeJsonFile(
+        path.join(artifactDir, `${context.releaseTag}-tauri-updater-fragment.json`),
+        buildTauriUpdaterFragment({
+          packageKey: context.releasePackageKey,
+          releaseTag: context.releaseTag,
+          version: context.publishVersion,
+          tauriPlatform,
+          file: stagedDesktopAssetName,
+          signature,
+        }),
+      );
+    }
   }
 
   await writeSha256Checksums(checksumTargets, checksumFile);

@@ -1,0 +1,161 @@
+services:
+  cli-proxy-api:
+    sourceRepository: tianweilong/CLIProxyAPI
+    buildContext: .
+    dockerfilePath: Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/cli-proxy-api
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+    buildArgs:
+      VERSION:
+        env: SOURCE_TAG
+      COMMIT:
+        env: SOURCE_SHA
+      BUILD_DATE:
+        env: BUILD_DATE
+
+  postgres17:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/postgres17
+    dockerfilePath: images/postgres17/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/paradedb-pg17
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  azure-storage-azurite:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/azure-storage-azurite
+    dockerfilePath: images/azure-storage-azurite/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/azure-storage-azurite
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  azure-cli:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/azure-cli
+    dockerfilePath: images/azure-cli/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/azure-cli
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  electricsql-electric:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/electricsql-electric
+    dockerfilePath: images/electricsql-electric/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/electricsql-electric
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  nginx:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/nginx
+    dockerfilePath: images/nginx/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/nginx
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  bitwarden:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/bitwarden
+    dockerfilePath: images/bitwarden/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/bitwarden
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  redis7:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/redis7
+    dockerfilePath: images/redis7/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/redis7
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  searxng:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/searxng
+    dockerfilePath: images/searxng/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/searxng
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  lobehub:
+    sourceRepository: tianweilong/lobehub
+    buildContext: .
+    dockerfilePath: Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/lobehub
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  new-api:
+    sourceRepository: tianweilong/new-api
+    buildContext: .
+    dockerfilePath: Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/new-api
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  vibe-kanban-remote:
+    sourceRepository: tianweilong/vibe-kanban
+    buildContext: .
+    dockerfilePath: crates/remote/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/vibe-kanban-remote
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  vibe-kanban-relay:
+    sourceRepository: tianweilong/vibe-kanban
+    buildContext: .
+    dockerfilePath: crates/relay-tunnel/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/vibe-kanban-relay
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  we-mp-rss:
+    sourceRepository: tianweilong/we-mp-rss
+    buildContext: .
+    dockerfilePath: Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/we-mp-rss
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  vibe-kanban-npm:
+    sourceRepository: tianweilong/vibe-kanban
+    npmPackageName: '@vino.tian/vibe-kanban'
+    npmPackageDir: npx-cli
+    npmVersionStrategy: calendar_tag
+    npmDistTag: latest
+    npmPlatforms:
+      - runner: ubuntu-latest
+        target: linux-x64
+        targetOs: linux
+        targetArch: x64
+        archiveExt: tar.gz
+      - runner: ubuntu-latest
+        target: linux-arm64
+        targetOs: linux
+        targetArch: arm64
+        archiveExt: tar.gz
+      - runner: windows-latest
+        target: win32-x64
+        targetOs: win32
+        targetArch: x64
+        archiveExt: zip
+      - runner: macos-15
+        target: darwin-arm64
+        targetOs: darwin
+        targetArch: arm64
+        archiveExt: tar.gz

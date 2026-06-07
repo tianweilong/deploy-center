@@ -4,7 +4,7 @@
 
 该仓库保存 `vibe-kanban` 相关服务的镜像构建配置，以及正式发布工作流。当前它同时负责两类发布目标：
 
-- `vibe-kanban-remote` 与 `vibe-kanban-relay` 的镜像构建
+- `vibe-kanban-remote` 与 `vibe-kanban-relay` 的 GHCR 镜像构建
 - `@vino.tian/vibe-kanban` 的 npm 打包与发布
 
 ## GitHub 配置
@@ -16,6 +16,7 @@
 必需的工作流权限：
 
 - `GITHUB_TOKEN` 需要具备 `packages: write`
+- npm Trusted Publishing 需要 `id-token: write`
 
 必需的部署主机凭据：
 
@@ -28,76 +29,44 @@
 
 ## 统一发布模型
 
-应用仓库 `vibe-kanban` 在推送正式标签后，会向本仓库发送一次 `repository_dispatch`。当前统一 payload 至少包含：
+业务仓在推送正式 tag 后向本仓库发送 `repository_dispatch`。payload 只包含：
 
-- `source_repository`
+- `service_name`
 - `source_ref`
 - `source_sha`
 - `source_tag`
-- `release_targets`
-- `npm_package_name`
-- `npm_package_dir`
-- `npm_version_strategy`
 
-标准正式发布的 `release_targets` 为：
+`source_tag` 必须匹配 `vYYYY.M.D-HHmm`，例如 `v2026.4.19-1116`。`latest`、`vX.Y.Z` 和 `2026.04.19.1` 这类旧格式不能作为输入 tag。
 
-- `remote`
-- `relay`
-- `npm`
+服务的源码仓、Dockerfile、GHCR 镜像仓库、npm 包名、npm 包目录和 npm 版本策略由 `config/services.yaml` 维护。
 
-当 payload 中包含 `npm` 时，至少需要提供：
+## 镜像发布
 
-- `npm_package_name`
-- `npm_package_dir`
-- `npm_version_strategy`
+镜像服务只发布到 GHCR。构建成功后会推送两个 tag：
 
-对于当前 `vibe-kanban`，这些值分别是：
+- `${SOURCE_TAG}`：不可变正式发布 tag。
+- `latest`：供 `docker-compose.yaml` 使用，便于拉取最新镜像而不改 compose 文件。
 
-- `@vino.tian/vibe-kanban`
-- `npx-cli`
-- `base_patch_offset`
+当前不执行 ACR mirror，也不更新 candidate release 或触发测试环境部署。
 
-## npm 版本映射规则
+## npm 发布
 
-`@vino.tian/vibe-kanban` 的正式发布不再直接复用源码仓库里的静态版本号，而是采用“基线版本 + 发布序号”的映射规则：
+npm 服务使用 `calendar_tag` 版本策略：`v2026.4.19-1116` 会发布为 npm version `2026.4.19-1116`。
 
-- 根 `package.json` 的 `version` 作为上游基线版本，例如 `1.2.30`
-- 合法发布 tag 必须为 `vX.Y.(Zx100+N)`，例如 `v1.2.3001`
-- npm 发布版本等于 tag 去掉前缀 `v` 后的值，也就是 `1.2.3001`
-- 其中 `N` 的合法范围是 `1..99`
+该版本在 npm 语义中属于 prerelease，因此发布时显式使用 `--tag latest`。这是本仓库的产品约定：内部工具通过 `npm install <pkg>` 或 `npx <pkg>` 默认获取最新 calendar 发布版本。
 
-这意味着：
-
-- 源码仓库根版本可以继续表示上游基线版本
-- `deploy-center` 不需要知道源仓库具体目录结构，而是通过 `npm_package_dir` 和 `npm_version_strategy` 执行发布
-- 对于需要映射规则的仓库，`deploy-center` 会在 CI 工作目录里临时改写目标 package 的版本
-- 该改动不会提交回源码仓库
-
-## 镜像构建平台
-
-`release-service` 工作流默认同时构建以下平台镜像：
-
-- `linux/amd64`
-- `linux/arm64`
-
-如某个服务需要单独限制平台，可在 `config/services.vibe-kanban.json` 中为该服务显式配置 `platforms` 字段覆盖默认值。
-
-## npm 打包说明
-
-当前 npm 发布路径会在自托管 ARM64 macOS Runner 上检出源仓库并执行：
+当前 npm 发布路径会检出源仓库并执行：
 
 - `pnpm i --frozen-lockfile`
 - `pnpm run build:npx`
 - `npm version "$PUBLISH_VERSION" --no-git-tag-version --allow-same-version`
-- `NODE_AUTH_TOKEN=${NPM_TOKEN} npm publish --access public`
+- `npm publish --access public --tag latest`
 
 最终用户通过以下命令启动本地 CLI：
 
 ```bash
 npx @vino.tian/vibe-kanban
 ```
-
-> 前提：需要在 `deploy-center` 仓库中配置 `NPM_TOKEN`，且该 token 必须是对 `@vino.tian/vibe-kanban` 具备写权限的 granular access token。
 
 ## 开发文档
 

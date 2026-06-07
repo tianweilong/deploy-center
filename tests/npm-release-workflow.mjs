@@ -9,6 +9,7 @@ import {
 } from './helpers.mjs';
 
 const workflow = await readRepoFile('.github/workflows/release-service.yml');
+const serviceConfig = await readRepoFile('config/services.yaml');
 const commonScript = await readRepoFile('scripts/npm-release-common.mjs');
 const prepareScript = await readRepoFile('scripts/prepare-npm-publish-input.mjs');
 const assetsScript = await readRepoFile('scripts/build-npm-release-assets.mjs');
@@ -29,6 +30,7 @@ await assertFileExists('scripts/merge-tauri-updater-json.mjs');
 await assertFileExists('scripts/publish-npm-package.mjs');
 
 for (const pattern of [
+  "needs.prepare.outputs.has_npm == 'true'",
   'npm_package_name',
   'npm_dist_tag',
   'release-npm-assets:',
@@ -39,19 +41,18 @@ for (const pattern of [
   'node scripts/prepare-npm-publish-input.mjs source',
   'node scripts/build-npm-release-assets.mjs source',
   'node scripts/merge-desktop-manifest.mjs release-artifacts',
-  'node scripts/merge-tauri-updater-json.mjs release-artifacts',
+  'node scripts/merge-tauri-updater-json.mjs release-artifacts "${{ github.repository }}"',
   'node scripts/publish-npm-package.mjs',
-  'linux-arm64',
-  'windows-latest',
-  'darwin-arm64',
   'node-version: 24',
   'uses: ./.github/actions/setup-node-pnpm',
   'uses: ./.github/actions/checkout-source',
   'actions/setup-go@v5',
-  "hashFiles('source/go/go.mod') != ''",
-  'go-version-file: source/go/go.mod',
+  'source/go.mod',
+  'source/go/go.mod',
+  "steps.detect-go-module.outputs.path != ''",
+  'go-version-file: ${{ steps.detect-go-module.outputs.path }}',
   '安装 Tauri CLI',
-  "env.NPM_PACKAGE_NAME == '@vino.tian/vibe-kanban' && matrix.target == 'darwin-arm64'",
+  "steps.npm-env.outputs.npm_package_name == '@vino.tian/vibe-kanban' && matrix.target == 'darwin-arm64'",
   "cargo install tauri-cli --version '^2' --locked",
   'lockfile-path: source/pnpm-lock.yaml',
   'pnpm-version: 10.13.1',
@@ -69,15 +70,23 @@ for (const pattern of [
   'BUILD_ARTIFACT_DIR: ../npm-artifacts/${{ matrix.target }}',
   'BUILD_DESKTOP_BUNDLE:',
   'DESKTOP_RELEASE_MODE:',
-  'TAURI_SIGNING_PRIVATE_KEY:',
-  'TAURI_SIGNING_PRIVATE_KEY_PASSWORD:',
-  'TAURI_UPDATE_ENDPOINT:',
+  'NPM_PACKAGE_NAME: ${{ steps.npm-env.outputs.npm_package_name }}',
+  'NPM_PACKAGE_DIR: ${{ steps.npm-env.outputs.npm_package_dir }}',
+  'NPM_VERSION_STRATEGY: ${{ steps.npm-env.outputs.npm_version_strategy }}',
+  'NPM_DIST_TAG: ${{ steps.npm-env.outputs.npm_dist_tag }}',
   'id-token: write',
   'gh release create',
-  'gh release view "${NPM_PACKAGE_NAME##*/}-updater"',
   'node scripts/merge-release-checksums.mjs release-artifacts',
 ]) {
   assertContains(workflow, pattern);
+}
+
+for (const pattern of [
+  'vibe-kanban-npm:',
+  'npmVersionStrategy: calendar_tag',
+  'npmDistTag: latest',
+]) {
+  assertContains(serviceConfig, pattern);
 }
 
 assert.equal(
@@ -87,12 +96,18 @@ assert.equal(
 );
 
 for (const pattern of [
-  "matrix.target == 'linux-x64'",
+  'github.event.client_payload.npm_package_name',
+  'inputs.npm_package_name',
+  'NPM_BASE_VERSION_FILE',
+  'NPM_VERSION_PATCH_FACTOR',
   'release-npm-package.sh source',
   'toolchain: nightly-',
   'path: npm-artifacts/${{ matrix.target }}',
   'NODE_AUTH_TOKEN',
   'registry-url: https://registry.npmjs.org',
+  'TAURI_SIGNING_PRIVATE_KEY:',
+  'TAURI_SIGNING_PRIVATE_KEY_PASSWORD:',
+  'TAURI_UPDATE_ENDPOINT:',
 ]) {
   assertNotContains(workflow, pattern);
 }
@@ -113,6 +128,8 @@ for (const pattern of [
   'validate-npm-build-contract.mjs',
   'checksums.txt',
   'desktop-manifest-fragment.json',
+  'tauri-updater-fragment.json',
+  'buildTauriUpdaterFragment',
   'BUILD_DESKTOP_BUNDLE',
   'DESKTOP_RELEASE_MODE',
 ]) {

@@ -109,30 +109,25 @@ test('resolvePublishVersion 支持 source_tag 策略', () => {
   );
 });
 
-test('resolvePublishVersion 支持 base_patch_offset 策略', () => {
+test('resolvePublishVersion 支持 calendar_tag 策略', () => {
   assert.equal(
     resolvePublishVersion({
-      strategy: 'base_patch_offset',
-      sourceTag: 'v0.1.3018',
-      packageVersion: '0.1.3',
-      baseVersion: '0.1.301',
-      patchFactor: '10',
+      strategy: 'calendar_tag',
+      sourceTag: 'v2026.4.19-1116',
+      packageVersion: '0.0.0',
     }),
-    '0.1.3018',
+    '2026.4.19-1116',
   );
 });
 
-test('resolvePublishVersion 对非法 patchFactor 报错', () => {
+test('resolvePublishVersion 拒绝 calendar_tag 旧格式', () => {
   assert.throws(
-    () =>
-      resolvePublishVersion({
-        strategy: 'base_patch_offset',
-        sourceTag: 'v0.1.3018',
-        packageVersion: '0.1.3',
-        baseVersion: '0.1.301',
-        patchFactor: '0',
-      }),
-    /不是有效正整数/,
+    () => resolvePublishVersion({
+      strategy: 'calendar_tag',
+      sourceTag: 'v1.2.3',
+      packageVersion: '0.0.0',
+    }),
+    /vYYYY\.M\.D-HHmm/,
   );
 });
 

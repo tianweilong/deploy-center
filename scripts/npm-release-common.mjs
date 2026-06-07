@@ -85,6 +85,27 @@ export function buildDesktopManifestFragment({
   };
 }
 
+export function buildTauriUpdaterFragment({
+  packageKey,
+  releaseTag,
+  version,
+  tauriPlatform,
+  file,
+  signature,
+}) {
+  return {
+    packageKey,
+    releaseTag,
+    version,
+    platforms: {
+      [tauriPlatform]: {
+        file,
+        signature,
+      },
+    },
+  };
+}
+
 export function parseSourceTagVersion(sourceTag) {
   const match = /^v([0-9]+)\.([0-9]+)\.([0-9]+)$/.exec(sourceTag);
   if (!match) {
@@ -99,66 +120,27 @@ export function parseSourceTagVersion(sourceTag) {
   };
 }
 
+export function parseCalendarTagVersion(sourceTag) {
+  const match = /^v(\d{4}\.\d{1,2}\.\d{1,2}-\d{4})$/.exec(sourceTag);
+  if (!match) {
+    throw new Error(`发布标签 ${sourceTag} 不符合 vYYYY.M.D-HHmm 格式。`);
+  }
+
+  return match[1];
+}
+
 export function resolvePublishVersion({
   strategy,
   sourceTag,
   packageVersion,
-  baseVersion,
-  patchFactor,
 }) {
   switch (strategy) {
     case 'package_json':
       return packageVersion;
     case 'source_tag':
       return parseSourceTagVersion(sourceTag).version;
-    case 'base_patch_offset': {
-      if (!baseVersion) {
-        throw new Error('缺少 NPM_BASE_VERSION_FILE 对应版本。');
-      }
-      if (!patchFactor) {
-        throw new Error('缺少 NPM_VERSION_PATCH_FACTOR。');
-      }
-
-      const tag = parseSourceTagVersion(sourceTag);
-      const baseMatch = /^([0-9]+)\.([0-9]+)\.([0-9]+)$/.exec(baseVersion);
-      if (!baseMatch) {
-        throw new Error(`基线版本 ${baseVersion} 不符合 X.Y.Z 格式。`);
-      }
-
-      if (!/^[1-9][0-9]*$/.test(String(patchFactor))) {
-        throw new Error(
-          `npm_version_patch_factor=${patchFactor} 不是有效正整数。`,
-        );
-      }
-
-      const baseMajor = Number(baseMatch[1]);
-      const baseMinor = Number(baseMatch[2]);
-      const basePatch = Number(baseMatch[3]);
-      const numericPatchFactor = Number(patchFactor);
-
-      if (tag.major !== baseMajor || tag.minor !== baseMinor) {
-        throw new Error(
-          `发布标签 ${sourceTag} 的 major/minor 与基线版本 ${baseVersion} 不一致。`,
-        );
-      }
-
-      const mappedBasePatch = Math.floor(tag.patch / numericPatchFactor);
-      const releaseSeq = tag.patch % numericPatchFactor;
-
-      if (mappedBasePatch !== basePatch) {
-        throw new Error(
-          `发布标签 ${sourceTag} 的 patch 无法映射到基线 patch ${basePatch}。`,
-        );
-      }
-
-      if (releaseSeq < 1 || releaseSeq >= numericPatchFactor) {
-        throw new Error(
-          `发布标签 ${sourceTag} 的发布序号 ${releaseSeq} 超出 1..${numericPatchFactor - 1} 范围。`,
-        );
-      }
-
-      return tag.version;
-    }
+    case 'calendar_tag':
+      return parseCalendarTagVersion(sourceTag);
     default:
       throw new Error(`不支持的 npm_version_strategy：${strategy}`);
   }
@@ -225,7 +207,8 @@ export async function initNpmReleaseContext(sourceDir = 'source', env = process.
   const sourceTag = env.SOURCE_TAG;
   const packageName = env.NPM_PACKAGE_NAME;
   const packageDir = env.NPM_PACKAGE_DIR;
-  const publishTag = env.NPM_DIST_TAG?.trim() ?? '';
+  const publishTagInput = env.NPM_DIST_TAG?.trim();
+  const publishTag = publishTagInput || 'latest';
   const versionStrategy = env.NPM_VERSION_STRATEGY;
 
   if (!sourceTag) {
@@ -252,21 +235,10 @@ export async function initNpmReleaseContext(sourceDir = 'source', env = process.
     );
   }
 
-  let baseVersion;
-  if (versionStrategy === 'base_patch_offset') {
-    const baseVersionFile = env.NPM_BASE_VERSION_FILE;
-    if (!baseVersionFile) {
-      throw new Error('缺少 NPM_BASE_VERSION_FILE');
-    }
-    baseVersion = (await readJsonFile(path.join(sourceRoot, baseVersionFile))).version;
-  }
-
   const publishVersion = resolvePublishVersion({
     strategy: versionStrategy,
     sourceTag,
     packageVersion: packageJson.version,
-    baseVersion,
-    patchFactor: env.NPM_VERSION_PATCH_FACTOR,
   });
   const releasePackageKey = packageName.split('/').at(-1);
   const releaseMetaPayload = buildReleaseMetaPayload({

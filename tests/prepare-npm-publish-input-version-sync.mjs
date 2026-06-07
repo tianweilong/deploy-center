@@ -46,3 +46,36 @@ try {
 } finally {
   await removeDir(tempRoot);
 }
+
+const calendarTempRoot = await createTempDir('deploy-center-calendar-version-');
+try {
+  const workspaceRoot = path.join(calendarTempRoot, 'workspace');
+  const sourceRoot = path.join(workspaceRoot, 'source');
+  const outputRoot = path.join(sourceRoot, 'calendar-npm-publish-input');
+  const fixtureSource = path.join(repoRoot, 'tests/fixtures/release-npm-package-source');
+
+  await mkdir(workspaceRoot, { recursive: true });
+  await cp(fixtureSource, sourceRoot, { recursive: true });
+
+  runNode([path.join(repoRoot, 'scripts/prepare-npm-publish-input.mjs'), 'source'], {
+    cwd: workspaceRoot,
+    env: {
+      OUTPUT_DIR: 'calendar-npm-publish-input',
+      SOURCE_TAG: 'v2026.4.19-1116',
+      NPM_PACKAGE_NAME: '@vino.tian/myte',
+      NPM_PACKAGE_DIR: 'npm/myte',
+      NPM_VERSION_STRATEGY: 'calendar_tag',
+      TARGET_OS: 'linux',
+      TARGET_ARCH: 'x64',
+    },
+  });
+
+  const publishContext = JSON.parse(
+    await readFile(path.join(outputRoot, 'publish-context.json'), 'utf8'),
+  );
+
+  assert.equal(publishContext.publishVersion, '2026.4.19-1116');
+  assert.equal(publishContext.publishTag, 'latest');
+} finally {
+  await removeDir(calendarTempRoot);
+}

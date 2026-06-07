@@ -52,6 +52,7 @@ if (targetOs === 'linux' && targetArch === 'x64') {
     const tauriDir = path.join(packageDir, 'dist', 'tauri', 'darwin-aarch64');
     await mkdir(tauriDir, { recursive: true });
     await writeFile(path.join(tauriDir, 'Myte.app.tar.gz'), 'desktop-bundle\n');
+    await writeFile(path.join(tauriDir, 'Myte.app.tar.gz.sig'), 'desktop-signature\n');
   }
 } else {
   throw new Error(
