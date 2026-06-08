@@ -21,8 +21,7 @@ const mergeTauriUpdaterScript = await readRepoFile(
 );
 const publishScript = await readRepoFile('scripts/publish-npm-package.mjs');
 const githubOutputScript = await readRepoFile('scripts/write-release-workflow-output.mjs');
-const dockerBuildArgsScript = await readRepoFile('scripts/print-docker-build-args.mjs');
-const imageDigestScript = await readRepoFile('scripts/print-container-image-digest.mjs');
+const buildImageDigestScript = await readRepoFile('scripts/build-and-push-image-digest.mjs');
 const detectGoModuleScript = await readRepoFile('scripts/detect-go-module.mjs');
 
 const workflowLines = workflow.split('\n');
@@ -87,8 +86,7 @@ await assertFileExists('scripts/merge-desktop-manifest.mjs');
 await assertFileExists('scripts/merge-tauri-updater-json.mjs');
 await assertFileExists('scripts/publish-npm-package.mjs');
 await assertFileExists('scripts/write-release-workflow-output.mjs');
-await assertFileExists('scripts/print-docker-build-args.mjs');
-await assertFileExists('scripts/print-container-image-digest.mjs');
+await assertFileExists('scripts/build-and-push-image-digest.mjs');
 await assertFileExists('scripts/detect-go-module.mjs');
 
 for (const pattern of [
@@ -109,8 +107,7 @@ for (const pattern of [
   'node scripts/write-release-workflow-output.mjs image-env',
   'node scripts/write-release-workflow-output.mjs npm-env',
   'node scripts/write-release-workflow-output.mjs npm-github-release-env',
-  'node ../scripts/print-docker-build-args.mjs',
-  'node ../scripts/print-container-image-digest.mjs /tmp/build-metadata.json',
+  'node scripts/build-and-push-image-digest.mjs source',
   'node-version: 24',
   'uses: ./.github/actions/setup-node-pnpm',
   'uses: ./.github/actions/checkout-source',
@@ -222,11 +219,8 @@ for (const pattern of [
   assertContains(githubOutputScript, pattern);
 }
 
-for (const pattern of ['BUILD_ARGS_JSON', '--build-arg']) {
-  assertContains(dockerBuildArgsScript, pattern);
-}
-for (const pattern of ['containerimage.digest', 'readContainerImageDigest']) {
-  assertContains(imageDigestScript, pattern);
+for (const pattern of ['BUILD_ARGS_JSON', '--build-arg', 'containerimage.digest']) {
+  assertContains(buildImageDigestScript, pattern);
 }
 
 for (const pattern of ['detectGoModule', 'GITHUB_OUTPUT']) {

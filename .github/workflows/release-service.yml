@@ -103,7 +103,6 @@ jobs:
 
       - id: build
         name: 构建并推送平台镜像 digest
-        working-directory: source
         env:
           SOURCE_REPOSITORY: ${{ steps.image-env.outputs.source_repository }}
           BUILD_CONTEXT: ${{ steps.image-env.outputs.build_context }}
@@ -111,23 +110,7 @@ jobs:
           GHCR_IMAGE_REPOSITORY: ${{ steps.image-env.outputs.ghcr_image_repository }}
           BUILD_ARGS_JSON: ${{ steps.image-env.outputs.build_args_json }}
           PLATFORM: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          mapfile -t docker_build_args < <(BUILD_ARGS_JSON="${BUILD_ARGS_JSON}" node ../scripts/print-docker-build-args.mjs)
-          docker buildx build \
-            "${docker_build_args[@]}" \
-            --label "org.opencontainers.image.source=https://github.com/${SOURCE_REPOSITORY}" \
-            --platform "${PLATFORM}" \
-            -f "${DOCKERFILE_PATH}" \
-            --output "type=image,name=${GHCR_IMAGE_REPOSITORY},push-by-digest=true,name-canonical=true,push=true" \
-            --metadata-file /tmp/build-metadata.json \
-            "${BUILD_CONTEXT}"
-          digest=$(node ../scripts/print-container-image-digest.mjs /tmp/build-metadata.json)
-          if [ -z "${digest}" ]; then
-            echo '构建未返回镜像 digest。' >&2
-            exit 1
-          fi
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+        run: node scripts/build-and-push-image-digest.mjs source
 
       - name: 导出镜像 digest
         env:
