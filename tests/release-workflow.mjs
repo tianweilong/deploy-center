@@ -10,6 +10,7 @@ import {
 const file = await readRepoFile('.github/workflows/release-service.yml');
 const validateWorkflow = await readRepoFile('.github/workflows/validate-deployment-config.yml');
 const workflowOutputScript = await readRepoFile('scripts/write-release-workflow-output.mjs');
+const buildImageDigestScript = await readRepoFile('scripts/build-and-push-image-digest.mjs');
 
 assertContains(file, 'packages: write');
 assertContains(file, 'id-token: write');
@@ -27,14 +28,11 @@ for (const pattern of [
   'node scripts/write-release-workflow-output.mjs image-manifest-env',
   'node scripts/write-release-workflow-output.mjs npm-env',
   'node scripts/write-release-workflow-output.mjs npm-github-release-env',
-  'node ../scripts/print-docker-build-args.mjs',
-  'node ../scripts/print-container-image-digest.mjs /tmp/build-metadata.json',
+  'node scripts/build-and-push-image-digest.mjs source',
   'build-and-push-ghcr:',
   'needs.prepare.outputs.has_image == \'true\'',
   'GHCR_IMAGE_REPOSITORY',
   'BUILD_ARGS_JSON',
-  'docker buildx build',
-  'push-by-digest=true',
   '上传镜像 digest',
   '下载镜像 digest',
   'pattern: image-digest-${{ steps.image-env.outputs.service_name }}--*',
@@ -111,6 +109,9 @@ for (const pattern of [
 for (const pattern of ['ubuntu-24.04-arm', 'appendGithubOutputs', 'image_matrix']) {
   assertContains(workflowOutputScript, pattern);
 }
+for (const pattern of ['docker', 'buildx', 'build', 'containerimage.digest', 'GITHUB_OUTPUT', 'push-by-digest=true']) {
+  assertContains(buildImageDigestScript, pattern);
+}
 
 for (const pattern of [
   'release_targets',
@@ -139,6 +140,8 @@ for (const pattern of [
   'release-npm-package.sh source',
   'toolchain: nightly-',
   'NODE_AUTH_TOKEN',
+  'mapfile -t docker_build_args',
+  'docker_build_args[@]',
   "node <<'NODE'",
   '/tmp/service-request.json',
   'shell: bash',
