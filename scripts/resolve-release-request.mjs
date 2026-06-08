@@ -5,7 +5,7 @@ import process from 'node:process';
 
 import { isMainModule } from './module-entrypoint.mjs';
 
-export const RELEASE_TAG_PATTERN = /^v\d{4}\.\d{1,2}\.\d{1,2}-\d{4}$/;
+export const RELEASE_TAG_PATTERN = /^v\d{4}\.([1-9]|1[0-2])\.([1-9]|[12]\d|3[01])-t\d{4}$/;
 
 function parseScalar(value) {
   const trimmed = value.trim();
@@ -177,11 +177,10 @@ function resolveBuildArgs(buildArgs, variables, serviceName) {
 }
 
 export function resolveCalendarNpmVersion(sourceTag) {
-  const match = /^v(\d{4}\.\d{1,2}\.\d{1,2})-(\d{4})$/.exec(sourceTag);
-  if (!match) {
-    throw new Error('source_tag must match vYYYY.M.D-HHmm');
+  if (!RELEASE_TAG_PATTERN.test(sourceTag)) {
+    throw new Error('source_tag must match vYYYY.M.D-tHHmm');
   }
-  return `${match[1]}-${Number(match[2])}`;
+  return sourceTag.slice(1);
 }
 
 export function resolveReleaseRequest(config, payload) {
@@ -197,7 +196,7 @@ export function resolveReleaseRequest(config, payload) {
   const sourceTag = requireText(payload, 'source_tag');
   const buildDate = process.env.BUILD_DATE || new Date().toISOString();
   if (!RELEASE_TAG_PATTERN.test(sourceTag)) {
-    throw new Error('source_tag must match vYYYY.M.D-HHmm');
+    throw new Error('source_tag must match vYYYY.M.D-tHHmm');
   }
 
   const resolved = {
