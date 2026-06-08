@@ -228,22 +228,37 @@ BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 
 ## 7. GitHub 配置与外部依赖
 
-### 7.1 仓库 Secrets
+### 7.1 GitHub App 配置
 
-- `SOURCE_REPO_TOKEN`
+发布链路统一使用 GitHub App，不再配置 `SOURCE_REPO_TOKEN`、`DEPLOY_CENTER_TRIGGER_TOKEN` 或其它长期 PAT。
+
+- `DEPLOY_CENTER_APP_ID`：仓库 variable，值为 GitHub App ID。
+- `DEPLOY_CENTER_APP_PRIVATE_KEY`：仓库 secret，值为 GitHub App private key PEM。
+- GitHub App 需安装到 `tianweilong/deploy-center` 与所有发布源仓库，例如 `tianweilong/vibe-kanban`、`tianweilong/myte`。
+- Repository permissions 至少包含 `Contents: Read and write`。
 
 ### 7.2 GitHub Token 权限
 
-- `GITHUB_TOKEN` 需要具备 `packages: write`
+- `contents: write`：`GITHUB_TOKEN` 用于在 `deploy-center` 创建 GitHub Release 和上传资产。
+- `packages: write`：`GITHUB_TOKEN` 用于推送 GHCR 镜像。
+- `id-token: write`：npm Trusted Publishing 使用 OIDC 发包。
 
-### 7.3 目标主机侧要求
+### 7.3 npm Trusted Publishing
+
+npm 包侧为每个包配置 trusted publisher：
+
+- Repository：`tianweilong/deploy-center`
+- Workflow：`release-service.yml`
+- Environment：留空，除非 workflow 后续显式配置同名 environment
+
+发布脚本不使用 `NPM_TOKEN` 或 `NODE_AUTH_TOKEN`。
+
+Trusted Publishing 侧允许的 action 至少选择 `npm publish`。当前 workflow 使用 GitHub-hosted runner、Node 24 与 npm 11.5.1，满足 npm 官方对 OIDC 发布的最低版本要求。
+
+### 7.4 目标主机侧要求
 
 - 具备 `read:packages` 的 PAT
 - 已执行 `docker login ghcr.io`
-
-### 7.4 应用仓库触发密钥
-
-- `DEPLOY_CENTER_TRIGGER_TOKEN`
 
 ## 8. 常见变更场景
 

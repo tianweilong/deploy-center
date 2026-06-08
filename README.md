@@ -9,23 +9,28 @@
 
 ## GitHub 配置
 
-必需的仓库密钥：
+发布链路统一使用 GitHub App，不再配置独立 PAT：
 
-- `SOURCE_REPO_TOKEN`
+- App 安装到 `tianweilong`，并授予 `deploy-center`、`vibe-kanban`、`myte` 等发布相关仓库访问权限。
+- App Repository permissions 至少包含 `Contents: Read and write`；触发仓库用它向 `deploy-center` 发送 `repository_dispatch`，`deploy-center` 用它检出源仓库。
+
+必需的仓库变量与密钥：
+
+- `DEPLOY_CENTER_APP_ID`：GitHub App ID。
+- `DEPLOY_CENTER_APP_PRIVATE_KEY`：GitHub App private key PEM。
 
 必需的工作流权限：
 
-- `GITHUB_TOKEN` 需要具备 `packages: write`
-- npm Trusted Publishing 需要 `id-token: write`
+- `contents: write`：`GITHUB_TOKEN` 用于在 `deploy-center` 创建 GitHub Release 和上传资产。
+- `packages: write`：`GITHUB_TOKEN` 用于推送 GHCR 镜像。
+- `id-token: write`：npm Trusted Publishing 使用 OIDC 发包，不需要 `NPM_TOKEN`。
+
+当前 workflow 使用 GitHub-hosted runner、Node 24 与 npm 11.5.1，满足 npm Trusted Publishing 对 OIDC 发布环境的要求。
 
 必需的部署主机凭据：
 
 - 具备 `read:packages` 的经典 PAT
 - `docker login ghcr.io`
-
-`vibe-kanban` 侧仅保留一个触发密钥：
-
-- `DEPLOY_CENTER_TRIGGER_TOKEN`
 
 ## 统一发布模型
 
