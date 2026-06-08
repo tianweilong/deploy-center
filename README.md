@@ -41,7 +41,7 @@
 - `source_sha`
 - `source_tag`
 
-`source_tag` 必须匹配 `vYYYY.M.D-HHmm`，例如 `v2026.4.19-1116`。`latest`、`vX.Y.Z` 和 `2026.04.19.1` 这类旧格式不能作为输入 tag。
+`source_tag` 必须匹配 `vYYYY.M.D-tHHmm`，例如 `v2026.4.19-t1116`。`latest`、`vX.Y.Z` 和 `2026.04.19.1` 这类旧格式不能作为输入 tag。
 
 服务的源码仓、Dockerfile、GHCR 镜像仓库、npm 包名、npm 包目录和 npm 版本策略由 `config/services.yaml` 维护。
 
@@ -56,7 +56,7 @@
 
 ## npm 发布
 
-npm 服务使用 `calendar_tag` 版本策略：`v2026.4.19-1116` 会发布为 npm version `2026.4.19-1116`。
+npm 服务使用 `calendar_tag` 版本策略：`v2026.4.19-t1116` 会发布为 npm version `2026.4.19-t1116`，即正式 tag 去掉前导 `v`。
 
 该版本在 npm 语义中属于 prerelease，因此发布时显式使用 `--tag latest`。这是本仓库的产品约定：内部工具通过 `npm install <pkg>` 或 `npx <pkg>` 默认获取最新 calendar 发布版本。
 

@@ -61,7 +61,7 @@ try {
     cwd: workspaceRoot,
     env: {
       OUTPUT_DIR: 'calendar-npm-publish-input',
-      SOURCE_TAG: 'v2026.4.19-1116',
+      SOURCE_TAG: 'v2026.4.19-t1116',
       NPM_PACKAGE_NAME: '@vino.tian/myte',
       NPM_PACKAGE_DIR: 'npm/myte',
       NPM_VERSION_STRATEGY: 'calendar_tag',
@@ -74,7 +74,7 @@ try {
     await readFile(path.join(outputRoot, 'publish-context.json'), 'utf8'),
   );
 
-  assert.equal(publishContext.publishVersion, '2026.4.19-1116');
+  assert.equal(publishContext.publishVersion, '2026.4.19-t1116');
   assert.equal(publishContext.publishTag, 'latest');
 } finally {
   await removeDir(calendarTempRoot);

@@ -60,14 +60,14 @@ async function runResolver(payload) {
 test('resolve-release-request 解析镜像服务上下文', async () => {
   const resolved = await runResolver({
     service_name: 'vibe-kanban-remote',
-    source_ref: 'refs/tags/v2026.4.19-1116',
+    source_ref: 'refs/tags/v2026.4.19-t1116',
     source_sha: '0123456789abcdef0123456789abcdef01234567',
-    source_tag: 'v2026.4.19-1116',
+    source_tag: 'v2026.4.19-t1116',
   });
 
   assert.equal(resolved.service_name, 'vibe-kanban-remote');
   assert.equal(resolved.source_repository, 'tianweilong/vibe-kanban');
-  assert.equal(resolved.image_tag, 'v2026.4.19-1116');
+  assert.equal(resolved.image_tag, 'v2026.4.19-t1116');
   assert.equal(resolved.ghcr_image_repository, 'ghcr.io/tianweilong/vibe-kanban-remote');
   assert.deepEqual(resolved.platforms, ['linux/amd64', 'linux/arm64']);
   assert.equal(resolved.has_image, true);
@@ -89,7 +89,7 @@ test('resolve-release-request 保留镜像构建参数', async () => {
     defaultPlatforms:
       - linux/amd64
     buildArgs:
-      VERSION: v2026.4.19-1116
+      VERSION: v2026.4.19-t1116
       FEATURE_FLAG: enabled
 `,
     'utf8',
@@ -99,9 +99,9 @@ test('resolve-release-request 保留镜像构建参数', async () => {
     `${JSON.stringify(
       {
         service_name: 'app',
-        source_ref: 'refs/tags/v2026.4.19-1116',
+        source_ref: 'refs/tags/v2026.4.19-t1116',
         source_sha: '0123456789abcdef0123456789abcdef01234567',
-        source_tag: 'v2026.4.19-1116',
+        source_tag: 'v2026.4.19-t1116',
       },
       null,
       2,
@@ -114,7 +114,7 @@ test('resolve-release-request 保留镜像构建参数', async () => {
     const resolved = JSON.parse(stdout);
 
     assert.deepEqual(resolved.build_args, {
-      VERSION: 'v2026.4.19-1116',
+      VERSION: 'v2026.4.19-t1116',
       FEATURE_FLAG: 'enabled',
     });
   } finally {
@@ -125,9 +125,9 @@ test('resolve-release-request 保留镜像构建参数', async () => {
 test('resolve-release-request 解析 npm calendar 发布上下文', async () => {
   const resolved = await runResolver({
     service_name: 'vibe-kanban-npm',
-    source_ref: 'refs/tags/v2026.4.19-1116',
+    source_ref: 'refs/tags/v2026.4.19-t1116',
     source_sha: '0123456789abcdef0123456789abcdef01234567',
-    source_tag: 'v2026.4.19-1116',
+    source_tag: 'v2026.4.19-t1116',
   });
 
   assert.equal(resolved.has_image, false);
@@ -136,16 +136,16 @@ test('resolve-release-request 解析 npm calendar 发布上下文', async () => 
   assert.equal(resolved.npm_package_dir, 'npx-cli');
   assert.equal(resolved.npm_version_strategy, 'calendar_tag');
   assert.equal(resolved.npm_dist_tag, 'latest');
-  assert.equal(resolved.npm_publish_version, '2026.4.19-1116');
+  assert.equal(resolved.npm_publish_version, '2026.4.19-t1116');
   assert.equal(resolved.npm_platforms.length, 4);
 });
 
 test('resolve-release-request 解析 myte npm calendar 发布上下文', async () => {
   const resolved = await runResolver({
     service_name: 'myte',
-    source_ref: 'refs/tags/v2026.4.19-1116',
+    source_ref: 'refs/tags/v2026.4.19-t1116',
     source_sha: '0123456789abcdef0123456789abcdef01234567',
-    source_tag: 'v2026.4.19-1116',
+    source_tag: 'v2026.4.19-t1116',
   });
 
   assert.equal(resolved.source_repository, 'tianweilong/myte');
@@ -155,22 +155,22 @@ test('resolve-release-request 解析 myte npm calendar 发布上下文', async (
   assert.equal(resolved.npm_package_dir, 'npm/myte');
   assert.equal(resolved.npm_version_strategy, 'calendar_tag');
   assert.equal(resolved.npm_dist_tag, 'latest');
-  assert.equal(resolved.npm_publish_version, '2026.4.19-1116');
+  assert.equal(resolved.npm_publish_version, '2026.4.19-t1116');
   assert.deepEqual(
     resolved.npm_platforms.map((platform) => platform.target),
     ['linux-x64', 'linux-arm64', 'win32-x64', 'darwin-arm64'],
   );
 });
 
-test('resolve-release-request 将 calendar npm 版本归一化为合法 semver', async () => {
+test('resolve-release-request 保留 calendar npm 版本的 4 位时间', async () => {
   const resolved = await runResolver({
     service_name: 'vibe-kanban-npm',
-    source_ref: 'refs/tags/v2026.4.19-0105',
+    source_ref: 'refs/tags/v2026.4.19-t0105',
     source_sha: '0123456789abcdef0123456789abcdef01234567',
-    source_tag: 'v2026.4.19-0105',
+    source_tag: 'v2026.4.19-t0105',
   });
 
-  assert.equal(resolved.npm_publish_version, '2026.4.19-105');
+  assert.equal(resolved.npm_publish_version, '2026.4.19-t0105');
 });
 
 async function runResolverFailure(payload) {
@@ -181,7 +181,7 @@ async function runResolverFailure(payload) {
   try {
     assert.throws(
       () => runNode(['scripts/resolve-release-request.mjs', 'config/services.yaml', payloadPath]),
-      /source_tag must match vYYYY\.M\.D-HHmm/,
+      /source_tag must match vYYYY\.M\.D-tHHmm/,
     );
   } finally {
     await removeDir(tempRoot);
@@ -191,11 +191,14 @@ async function runResolverFailure(payload) {
 test('resolve-release-request 拒绝旧 tag 格式', async () => {
   const basePayload = {
     service_name: 'vibe-kanban-remote',
-    source_ref: 'refs/tags/v2026.4.19-1116',
+    source_ref: 'refs/tags/v2026.4.19-t1116',
     source_sha: '0123456789abcdef0123456789abcdef01234567',
   };
 
   await runResolverFailure({ ...basePayload, source_tag: 'latest' });
   await runResolverFailure({ ...basePayload, source_tag: 'v1.2.3' });
   await runResolverFailure({ ...basePayload, source_tag: '2026.04.19.1' });
+  await runResolverFailure({ ...basePayload, source_tag: 'v2026.4.19-0105' });
+  await runResolverFailure({ ...basePayload, source_tag: 'v2026.04.19-t0105' });
+  await runResolverFailure({ ...basePayload, source_tag: 'v2026.4.09-t0105' });
 });

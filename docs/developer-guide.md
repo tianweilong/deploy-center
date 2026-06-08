@@ -73,7 +73,7 @@
 - `SOURCE_SHA`
 - `SOURCE_TAG`
 
-`SOURCE_TAG` 必须匹配 `vYYYY.M.D-HHmm`，例如 `v2026.4.19-1116`。`latest`、`vX.Y.Z` 和 `2026.04.19.1` 这类旧格式会被拒绝。
+`SOURCE_TAG` 必须匹配 `vYYYY.M.D-tHHmm`，例如 `v2026.4.19-t1116`。`latest`、`vX.Y.Z` 和 `2026.04.19.1` 这类旧格式会被拒绝。
 
 ### 4.2 prepare 阶段
 
@@ -126,7 +126,7 @@
 
 `release-github-release` 会在当前仓库创建 GitHub Release，并上传各平台产物；`release-npm` 再发布轻量 npm 包。
 
-`vYYYY.M.D-HHmm` 会按 `calendar_tag` 策略转换为合法 npm 版本 `YYYY.M.D-HHmm`。例如 `v2026.4.19-1116` 发布为 npm 版本 `2026.4.19-1116`。该版本在 npm 语义中属于 prerelease，本仓库按内部工具约定显式使用 `--tag latest`，让 `npm install <pkg>` 和 `npx <pkg>` 默认拿到最新发布。
+`vYYYY.M.D-tHHmm` 会按 `calendar_tag` 策略转换为合法 npm 版本 `YYYY.M.D-tHHmm`，也就是正式 tag 去掉前导 `v`。例如 `v2026.4.19-t1116` 发布为 npm 版本 `2026.4.19-t1116`。该版本在 npm 语义中属于 prerelease，本仓库按内部工具约定显式使用 `--tag latest`，让 `npm install <pkg>` 和 `npx <pkg>` 默认拿到最新发布。
 
 ### 4.5 当前边界
 
@@ -216,9 +216,9 @@ node --test tests/resolve-release-request.mjs tests/ghcr-references.mjs tests/lo
 cat > /tmp/release-input.json <<'JSON'
 {
   "service_name": "vibe-kanban-remote",
-  "source_ref": "refs/tags/v2026.4.19-1116",
+  "source_ref": "refs/tags/v2026.4.19-t1116",
   "source_sha": "0123456789abcdef0123456789abcdef01234567",
-  "source_tag": "v2026.4.19-1116"
+  "source_tag": "v2026.4.19-t1116"
 }
 JSON
 

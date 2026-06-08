@@ -9,10 +9,10 @@
 ## 目标
 
 - 发布触发改为以 `service_name` 为核心，而不是由触发方传入多组构建细节。
-- `source_tag` 统一使用 Lindos 风格正式发布 tag：`vYYYY.M.D-HHmm`，例如 `v2026.4.19-1116`。
+- `source_tag` 统一使用 Lindos 风格正式发布 tag：`vYYYY.M.D-tHHmm`，例如 `v2026.4.19-t1116`。
 - 禁止 `latest`、`vX.Y.Z`、`2026.04.19.1` 等旧格式作为输入发布 tag。
 - 镜像构建只发布到 GHCR，构建成功后同时推送 `${SOURCE_TAG}` 和 `latest` 两个 tag。
-- npm 发布版本与正式发布 tag 保持语义一致：`v2026.4.19-1116` 映射为 npm version `2026.4.19-1116`。
+- npm 发布版本与正式发布 tag 保持语义一致：`v2026.4.19-t1116` 映射为 npm version `2026.4.19-t1116`。
 - npm 发布显式使用 `--tag latest`，使 `npm install <pkg>` 默认安装最新 calendar 版本。
 - 保留现有 npm 轻量包、平台资产、GitHub Release 和 Trusted Publishing 能力。
 
@@ -45,7 +45,7 @@
 - `service_name`：发布服务标识。
 - `source_ref`：源码引用，通常为 `refs/tags/<source_tag>`。
 - `source_sha`：源码提交 SHA。
-- `source_tag`：正式发布 tag，必须匹配 `vYYYY.M.D-HHmm`。
+- `source_tag`：正式发布 tag，必须匹配 `vYYYY.M.D-tHHmm`。
 
 触发方不再传入镜像仓库、构建上下文、Dockerfile、npm 包名、npm 包目录或 npm 版本策略等服务静态事实。这些信息由 `deploy-center` 的服务配置维护。
 
@@ -111,8 +111,8 @@ npm 继续使用现有 Node 脚本体系：准备发布输入、构建平台资�
 
 新增 `calendar_tag` 版本策略：
 
-- 输入：`source_tag = v2026.4.19-1116`。
-- npm version：`2026.4.19-1116`。
+- 输入：`source_tag = v2026.4.19-t1116`。
+- npm version：`2026.4.19-t1116`，即 `source_tag` 去掉前导 `v`。
 - GitHub Release tag 和资产命名仍可继续使用包含 `v` 的 `source_tag`，保持与正式发布 tag 对齐。
 
 发布时必须显式传 `--tag latest`。该版本在 npm 语义中属于 prerelease；不显式设置 dist-tag 时 npm 会拒绝发布。使用 `latest` 是明确产品选择：内部工具希望 `npm install <pkg>` 默认获得最新 calendar 版本。
@@ -136,7 +136,7 @@ npm 发布输入不再来自 dispatch payload，而是来自服务配置和请�
 
 - 缺少必填 payload 字段时立即失败，并输出具体字段名。
 - 未知服务名立即失败。
-- tag 格式不合法立即失败，错误信息说明必须匹配 `vYYYY.M.D-HHmm`。
+- tag 格式不合法立即失败，错误信息说明必须匹配 `vYYYY.M.D-tHHmm`。
 - 配置中缺少镜像或 npm 必填字段时立即失败。
 - npm calendar 版本发布时若没有 dist-tag，解析层补齐 `latest`；发布脚本仍应校验最终 dist-tag 非空。
 - Docker build 成功但 push 失败时 workflow 失败，不更新任何外部部署状态。
@@ -146,10 +146,10 @@ npm 发布输入不再来自 dispatch payload，而是来自服务配置和请�
 需要更新或新增以下测试：
 
 - resolver 测试：合法 payload 解析为源码仓、构建上下文、GHCR 仓库、平台、npm 上下文。
-- tag 校验测试：接受 `v2026.4.19-1116`，拒绝 `latest`、`v1.2.3`、`2026.04.19.1` 和空值。
+- tag 校验测试：接受 `v2026.4.19-t1116`，拒绝 `latest`、`v1.2.3`、`2026.04.19.1` 和空值。
 - workflow contract 测试：确认使用 `service_name`、统一配置和 `build-and-push-ghcr`，不包含 ACR mirror、candidate update 或 deploy-test。
 - 镜像发布测试：确认 workflow 包含 `${SOURCE_TAG}` 和 `latest` 两个 GHCR tag。
-- npm 版本测试：`calendar_tag` 将 `v2026.4.19-1116` 解析为 `2026.4.19-1116`。
+- npm 版本测试：`calendar_tag` 将 `v2026.4.19-t1116` 解析为 `2026.4.19-t1116`。
 - npm 发布测试：确认 publish 参数包含 `--tag latest`，且不依赖旧 dispatch npm 输入。
 - 旧行为移除测试：不再允许 `latest` 或 `vX.Y.Z` 作为输入 `SOURCE_TAG`。
 

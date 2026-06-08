@@ -5,8 +5,8 @@ import { buildReleaseMeta } from '../scripts/release-meta.mjs';
 
 const baseInput = {
   packageName: '@vino.tian/vibe-kanban',
-  publishVersion: '2026.4.19-1116',
-  sourceTag: 'v2026.4.19-1116',
+  publishVersion: '2026.4.19-t1116',
+  sourceTag: 'v2026.4.19-t1116',
   distributionMode: 'github_release',
   releaseRepository: 'tianweilong/deploy-center',
 };
@@ -16,9 +16,9 @@ test('calendar_tag 生成显式 releaseTag 与 packageVersion', () => {
 
   assert.equal(meta.schemaVersion, 1);
   assert.equal(meta.packageName, '@vino.tian/vibe-kanban');
-  assert.equal(meta.packageVersion, '2026.4.19-1116');
+  assert.equal(meta.packageVersion, '2026.4.19-t1116');
   assert.equal(meta.releaseRepository, 'tianweilong/deploy-center');
-  assert.equal(meta.releaseTag, 'vibe-kanban-v2026.4.19-1116');
+  assert.equal(meta.releaseTag, 'vibe-kanban-v2026.4.19-t1116');
   assert.equal(meta.releasePackageKey, 'vibe-kanban');
   assert.equal(meta.distributionMode, 'github_release');
 });
