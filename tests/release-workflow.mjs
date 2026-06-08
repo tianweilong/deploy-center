@@ -12,6 +12,34 @@ const validateWorkflow = await readRepoFile('.github/workflows/validate-deployme
 const workflowOutputScript = await readRepoFile('scripts/write-release-workflow-output.mjs');
 const buildImageDigestScript = await readRepoFile('scripts/build-and-push-image-digest.mjs');
 
+const workflowLines = file.split('\n');
+
+function findJobBlock(jobName) {
+  const start = workflowLines.findIndex((line) => line === `  ${jobName}:`);
+  assert.notEqual(start, -1, `未找到 workflow job：${jobName}`);
+
+  let end = workflowLines.length;
+  for (let index = start + 1; index < workflowLines.length; index += 1) {
+    if (/^  [A-Za-z0-9_-]+:$/.test(workflowLines[index])) {
+      end = index;
+      break;
+    }
+  }
+
+  return workflowLines.slice(start, end).join('\n');
+}
+
+for (const jobName of ['prepare', 'build-and-push-ghcr', 'merge-ghcr-manifest', 'prepare-npm-publish-input', 'release-github-release', 'release-npm']) {
+  const jobBlock = findJobBlock(jobName);
+  if (jobBlock.includes('node scripts/')) {
+    assertContains(
+      jobBlock,
+      'uses: actions/checkout@v6',
+      `${jobName} 调用 deploy-center scripts 前必须 checkout 仓库。`,
+    );
+  }
+}
+
 assertContains(file, 'packages: write');
 assertContains(file, 'id-token: write');
 assertNotContains(file, '[self-hosted, Linux, ARM64]');
@@ -166,7 +194,7 @@ for (const pattern of [
 
 assert.equal(
   [...file.matchAll(/^      - uses: actions\/checkout@v6$/gm)].length,
-  6,
+  7,
   'actions/checkout@v6 次数不符合预期',
 );
 assertNotContains(

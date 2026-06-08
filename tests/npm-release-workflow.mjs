@@ -160,7 +160,7 @@ for (const pattern of [
 
 assert.equal(
   [...workflow.matchAll(/^      - uses: actions\/checkout@v6$/gm)].length,
-  6,
+  7,
   'actions/checkout@v6 次数不符合预期',
 );
 

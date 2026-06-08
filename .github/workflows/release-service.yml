@@ -139,6 +139,8 @@ jobs:
       contents: read
       packages: write
     steps:
+      - uses: actions/checkout@v6
+
       - id: image-env
         name: 解析镜像 manifest 环境
         env:
