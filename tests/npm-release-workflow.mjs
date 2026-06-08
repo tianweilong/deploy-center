@@ -21,6 +21,50 @@ const mergeTauriUpdaterScript = await readRepoFile(
 );
 const publishScript = await readRepoFile('scripts/publish-npm-package.mjs');
 
+const workflowLines = workflow.split('\n');
+
+function findJobBlock(jobName) {
+  const start = workflowLines.findIndex((line) => line === `  ${jobName}:`);
+  assert.notEqual(start, -1, `未找到 workflow job：${jobName}`);
+
+  let end = workflowLines.length;
+  for (let index = start + 1; index < workflowLines.length; index += 1) {
+    if (/^  [A-Za-z0-9_-]+:$/.test(workflowLines[index])) {
+      end = index;
+      break;
+    }
+  }
+
+  return workflowLines.slice(start, end).join('\n');
+}
+
+function findStepBlock(jobBlock, stepName) {
+  const lines = jobBlock.split('\n');
+  const start = lines.findIndex((line) => line.trim() === `name: ${stepName}`);
+  assert.notEqual(start, -1, `未找到 workflow step：${stepName}`);
+
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^      - /.test(lines[index])) {
+      end = index;
+      break;
+    }
+  }
+
+  return lines.slice(start, end).join('\n');
+}
+
+const releaseNpmAssetsJob = findJobBlock('release-npm-assets');
+const releaseNpmAssetsEnvStep = findStepBlock(
+  releaseNpmAssetsJob,
+  '解析 npm 发布环境',
+);
+assertContains(
+  releaseNpmAssetsEnvStep,
+  'shell: bash',
+  'release-npm-assets 的解析 npm 发布环境步骤会在 Windows matrix 上运行，必须显式使用 bash，避免 pwsh 无法解析 heredoc。',
+);
+
 await assertFileNotExists('scripts/release-npm-package.sh');
 await assertFileNotExists('scripts/prepare-release-matrix.rb');
 await assertFileExists('scripts/prepare-npm-publish-input.mjs');

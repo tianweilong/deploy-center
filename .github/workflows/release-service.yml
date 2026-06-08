@@ -393,6 +393,7 @@ jobs:
 
       - id: npm-env
         name: 解析 npm 发布环境
+        shell: bash
         env:
           SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
         run: |
