@@ -9,6 +9,7 @@ import {
 
 const file = await readRepoFile('.github/workflows/release-service.yml');
 const validateWorkflow = await readRepoFile('.github/workflows/validate-deployment-config.yml');
+const workflowOutputScript = await readRepoFile('scripts/write-release-workflow-output.mjs');
 
 assertContains(file, 'packages: write');
 assertContains(file, 'id-token: write');
@@ -21,12 +22,17 @@ for (const pattern of [
   'SOURCE_REF: ${{ github.event.client_payload.source_ref || inputs.source_ref }}',
   'SOURCE_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}',
   'SOURCE_TAG: ${{ github.event.client_payload.source_tag || inputs.source_tag }}',
-  'node scripts/resolve-release-request.mjs config/services.yaml /tmp/release-input.json',
+  'node scripts/write-release-workflow-output.mjs prepare',
+  'node scripts/write-release-workflow-output.mjs image-env',
+  'node scripts/write-release-workflow-output.mjs image-manifest-env',
+  'node scripts/write-release-workflow-output.mjs npm-env',
+  'node scripts/write-release-workflow-output.mjs npm-github-release-env',
+  'node ../scripts/print-docker-build-args.mjs',
+  'node ../scripts/print-container-image-digest.mjs /tmp/build-metadata.json',
   'build-and-push-ghcr:',
   'needs.prepare.outputs.has_image == \'true\'',
   'GHCR_IMAGE_REPOSITORY',
   'BUILD_ARGS_JSON',
-  '--build-arg',
   'docker buildx build',
   'push-by-digest=true',
   '上传镜像 digest',
@@ -41,7 +47,6 @@ for (const pattern of [
   'docker/setup-buildx-action@v3',
   'runs-on: ${{ matrix.runner }}',
   'matrix: ${{ fromJSON(needs.prepare.outputs.image_matrix) }}',
-  'ubuntu-24.04-arm',
   'has_npm',
   'npm_matrix',
   'release-npm-assets:',
@@ -78,8 +83,7 @@ for (const pattern of [
   'uses: ./.github/actions/print-runner-info',
   'actions/setup-go@v5',
   '检测 Go module 文件',
-  'source/go.mod',
-  'source/go/go.mod',
+  'node scripts/detect-go-module.mjs source',
   "steps.detect-go-module.outputs.path != ''",
   'go-version-file: ${{ steps.detect-go-module.outputs.path }}',
   '安装 Tauri CLI',
@@ -102,6 +106,10 @@ for (const pattern of [
   'npm-artifacts/${{ matrix.target }}/*-tauri-updater-fragment.json',
 ]) {
   assertContains(file, pattern);
+}
+
+for (const pattern of ['ubuntu-24.04-arm', 'appendGithubOutputs', 'image_matrix']) {
+  assertContains(workflowOutputScript, pattern);
 }
 
 for (const pattern of [
@@ -131,6 +139,9 @@ for (const pattern of [
   'release-npm-package.sh source',
   'toolchain: nightly-',
   'NODE_AUTH_TOKEN',
+  "node <<'NODE'",
+  '/tmp/service-request.json',
+  'shell: bash',
   'SOURCE_REPO_TOKEN',
   '--provenance',
   'update-state:',

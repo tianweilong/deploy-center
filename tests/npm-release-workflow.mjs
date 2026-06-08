@@ -20,6 +20,10 @@ const mergeTauriUpdaterScript = await readRepoFile(
   'scripts/merge-tauri-updater-json.mjs',
 );
 const publishScript = await readRepoFile('scripts/publish-npm-package.mjs');
+const githubOutputScript = await readRepoFile('scripts/write-release-workflow-output.mjs');
+const dockerBuildArgsScript = await readRepoFile('scripts/print-docker-build-args.mjs');
+const imageDigestScript = await readRepoFile('scripts/print-container-image-digest.mjs');
+const detectGoModuleScript = await readRepoFile('scripts/detect-go-module.mjs');
 
 const workflowLines = workflow.split('\n');
 
@@ -61,8 +65,18 @@ const releaseNpmAssetsEnvStep = findStepBlock(
 );
 assertContains(
   releaseNpmAssetsEnvStep,
+  'node scripts/write-release-workflow-output.mjs npm-env',
+  'release-npm-assets 的解析 npm 发布环境步骤会在 Windows matrix 上运行，必须使用跨平台 MJS 写 GITHUB_OUTPUT。',
+);
+assertNotContains(
+  workflow,
+  "node <<'NODE'",
+  'release-service.yml 不应保留 inline Node heredoc，避免 Bash/pwsh 和 Windows 路径差异。',
+);
+assertNotContains(
+  workflow,
   'shell: bash',
-  'release-npm-assets 的解析 npm 发布环境步骤会在 Windows matrix 上运行，必须显式使用 bash，避免 pwsh 无法解析 heredoc。',
+  'release-service.yml 不应依赖 Bash shell 处理 npm 发布路径，避免 Windows matrix 路径差异。',
 );
 
 await assertFileNotExists('scripts/release-npm-package.sh');
@@ -72,6 +86,10 @@ await assertFileExists('scripts/build-npm-release-assets.mjs');
 await assertFileExists('scripts/merge-desktop-manifest.mjs');
 await assertFileExists('scripts/merge-tauri-updater-json.mjs');
 await assertFileExists('scripts/publish-npm-package.mjs');
+await assertFileExists('scripts/write-release-workflow-output.mjs');
+await assertFileExists('scripts/print-docker-build-args.mjs');
+await assertFileExists('scripts/print-container-image-digest.mjs');
+await assertFileExists('scripts/detect-go-module.mjs');
 
 for (const pattern of [
   "needs.prepare.outputs.has_npm == 'true'",
@@ -87,12 +105,18 @@ for (const pattern of [
   'node scripts/merge-desktop-manifest.mjs release-artifacts',
   'node scripts/merge-tauri-updater-json.mjs release-artifacts "${{ github.repository }}"',
   'node scripts/publish-npm-package.mjs',
+  'node scripts/write-release-workflow-output.mjs prepare',
+  'node scripts/write-release-workflow-output.mjs image-env',
+  'node scripts/write-release-workflow-output.mjs npm-env',
+  'node scripts/write-release-workflow-output.mjs npm-github-release-env',
+  'node ../scripts/print-docker-build-args.mjs',
+  'node ../scripts/print-container-image-digest.mjs /tmp/build-metadata.json',
   'node-version: 24',
   'uses: ./.github/actions/setup-node-pnpm',
   'uses: ./.github/actions/checkout-source',
   'actions/setup-go@v5',
-  'source/go.mod',
-  'source/go/go.mod',
+  'node scripts/detect-go-module.mjs source',
+  'go-version-file: ${{ steps.detect-go-module.outputs.path }}',
   "steps.detect-go-module.outputs.path != ''",
   'go-version-file: ${{ steps.detect-go-module.outputs.path }}',
   '安装 Tauri CLI',
@@ -186,6 +210,28 @@ for (const pattern of [
 }
 assertContains(commonScript, "createHash('sha256')");
 assertNotContains(assetsScript, 'npm publish');
+
+for (const pattern of [
+  'appendGithubOutputs',
+  'SERVICE_REQUEST',
+  'GITHUB_OUTPUT',
+  'image_matrix',
+  'npm_matrix',
+  'npm_package_name',
+]) {
+  assertContains(githubOutputScript, pattern);
+}
+
+for (const pattern of ['BUILD_ARGS_JSON', '--build-arg']) {
+  assertContains(dockerBuildArgsScript, pattern);
+}
+for (const pattern of ['containerimage.digest', 'readContainerImageDigest']) {
+  assertContains(imageDigestScript, pattern);
+}
+
+for (const pattern of ['detectGoModule', 'GITHUB_OUTPUT']) {
+  assertContains(detectGoModuleScript, pattern);
+}
 
 for (const pattern of [
   'desktop-manifest-fragment.json',
