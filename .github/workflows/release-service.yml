@@ -19,7 +19,7 @@ on:
         required: true
         type: string
       source_tag:
-        description: 源标签，格式 vYYYY.M.D-HHmm
+        description: 源标签，格式 vYYYY.M.D-tHHmm
         required: true
         type: string
 
@@ -48,45 +48,7 @@ jobs:
 
       - id: resolve
         name: 解析发布请求
-        run: |
-          set -euo pipefail
-          cat > /tmp/release-input.json <<JSON
-          {
-            "service_name": "${SERVICE_NAME}",
-            "source_ref": "${SOURCE_REF}",
-            "source_sha": "${SOURCE_SHA}",
-            "source_tag": "${SOURCE_TAG}"
-          }
-          JSON
-          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            node scripts/resolve-release-request.mjs config/services.yaml /tmp/release-input.json > /tmp/service-request.json
-          {
-            echo 'service_request<<EOF'
-            cat /tmp/service-request.json
-            echo 'EOF'
-          } >> "${GITHUB_OUTPUT}"
-          node <<'NODE' >> "${GITHUB_OUTPUT}"
-          const fs = require('node:fs');
-          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
-          const runnerForPlatform = (platform) => {
-            if (platform === 'linux/amd64') return 'ubuntu-latest';
-            if (platform === 'linux/arm64') return 'ubuntu-24.04-arm';
-            throw new Error(`不支持的镜像平台：${platform}`);
-          };
-          const imageMatrix = {
-            include: request.has_image
-              ? request.platforms.map((platform) => ({
-                  platform,
-                  platform_pair: platform.replaceAll('/', '-'),
-                  runner: runnerForPlatform(platform),
-                }))
-              : [],
-          };
-          console.log(`has_image=${request.has_image}`);
-          console.log(`has_npm=${request.has_npm}`);
-          console.log(`image_matrix=${JSON.stringify(imageMatrix)}`);
-          console.log(`npm_matrix=${JSON.stringify({ include: request.npm_platforms ?? [] })}`);
-          NODE
+        run: node scripts/write-release-workflow-output.mjs prepare
 
   build-and-push-ghcr:
     needs: prepare
@@ -105,26 +67,7 @@ jobs:
         name: 解析镜像构建环境
         env:
           SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
-        run: |
-          printf '%s\n' "${SERVICE_REQUEST}" > /tmp/service-request.json
-          node <<'NODE' >> "${GITHUB_OUTPUT}"
-          const fs = require('node:fs');
-          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
-          const outputs = {
-            service_name: request.service_name,
-            source_repository: request.source_repository,
-            source_owner: request.source_repository.split('/')[0],
-            source_repository_name: request.source_repository.split('/')[1],
-            build_context: request.build_context,
-            dockerfile_path: request.dockerfile_path,
-            ghcr_image_repository: request.ghcr_image_repository,
-            image_tag: request.image_tag,
-            build_args_json: JSON.stringify(request.build_args ?? {}),
-          };
-          for (const [key, value] of Object.entries(outputs)) {
-            console.log(`${key}=${value}`);
-          }
-          NODE
+        run: node scripts/write-release-workflow-output.mjs image-env
 
       - name: 生成源仓库检出 token
         id: source-token
@@ -170,14 +113,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          mapfile -t docker_build_args < <(BUILD_ARGS_JSON="${BUILD_ARGS_JSON}" node <<'NODE'
-          const buildArgs = JSON.parse(process.env.BUILD_ARGS_JSON || '{}');
-          for (const [key, value] of Object.entries(buildArgs)) {
-            console.log('--build-arg');
-            console.log(`${key}=${value}`);
-          }
-          NODE
-          )
+          mapfile -t docker_build_args < <(BUILD_ARGS_JSON="${BUILD_ARGS_JSON}" node ../scripts/print-docker-build-args.mjs)
           docker buildx build \
             "${docker_build_args[@]}" \
             --label "org.opencontainers.image.source=https://github.com/${SOURCE_REPOSITORY}" \
@@ -186,12 +122,7 @@ jobs:
             --output "type=image,name=${GHCR_IMAGE_REPOSITORY},push-by-digest=true,name-canonical=true,push=true" \
             --metadata-file /tmp/build-metadata.json \
             "${BUILD_CONTEXT}"
-          digest=$(node <<'NODE'
-          const fs = require('node:fs');
-          const metadata = JSON.parse(fs.readFileSync('/tmp/build-metadata.json', 'utf8'));
-          process.stdout.write(metadata['containerimage.digest'] || '');
-          NODE
-          )
+          digest=$(node ../scripts/print-container-image-digest.mjs /tmp/build-metadata.json)
           if [ -z "${digest}" ]; then
             echo '构建未返回镜像 digest。' >&2
             exit 1
@@ -229,15 +160,7 @@ jobs:
         name: 解析镜像 manifest 环境
         env:
           SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
-        run: |
-          printf '%s\n' "${SERVICE_REQUEST}" > /tmp/service-request.json
-          node <<'NODE' >> "${GITHUB_OUTPUT}"
-          const fs = require('node:fs');
-          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
-          console.log(`service_name=${request.service_name}`);
-          console.log(`ghcr_image_repository=${request.ghcr_image_repository}`);
-          console.log(`image_tag=${request.image_tag}`);
-          NODE
+        run: node scripts/write-release-workflow-output.mjs image-manifest-env
 
       - name: 登录 GitHub Container Registry
         uses: docker/login-action@v3
@@ -289,24 +212,7 @@ jobs:
         name: 解析 npm 发布环境
         env:
           SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
-        run: |
-          printf '%s\n' "${SERVICE_REQUEST}" > /tmp/service-request.json
-          node <<'NODE' >> "${GITHUB_OUTPUT}"
-          const fs = require('node:fs');
-          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
-          const outputs = {
-            source_repository: request.source_repository,
-            source_owner: request.source_repository.split('/')[0],
-            source_repository_name: request.source_repository.split('/')[1],
-            npm_package_name: request.npm_package_name,
-            npm_package_dir: request.npm_package_dir,
-            npm_dist_tag: request.npm_dist_tag,
-            npm_version_strategy: request.npm_version_strategy,
-          };
-          for (const [key, value] of Object.entries(outputs)) {
-            console.log(`${key}=${value}`);
-          }
-          NODE
+        run: node scripts/write-release-workflow-output.mjs npm-env
 
       - name: 生成源仓库检出 token
         id: source-token
@@ -328,15 +234,7 @@ jobs:
 
       - name: 检测 Go module 文件
         id: detect-go-module
-        shell: bash
-        run: |
-          if [ -f source/go.mod ]; then
-            echo "path=source/go.mod" >> "$GITHUB_OUTPUT"
-          elif [ -f source/go/go.mod ]; then
-            echo "path=source/go/go.mod" >> "$GITHUB_OUTPUT"
-          else
-            echo "path=" >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/detect-go-module.mjs source
 
       - name: 安装 Go
         if: ${{ steps.detect-go-module.outputs.path != '' }}
@@ -361,7 +259,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: 准备 npm 发布输入
-        shell: bash
         env:
           NODE_OPTIONS: --max-old-space-size=6144
           OUTPUT_DIR: ../npm-publish-input
@@ -393,27 +290,9 @@ jobs:
 
       - id: npm-env
         name: 解析 npm 发布环境
-        shell: bash
         env:
           SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
-        run: |
-          printf '%s\n' "${SERVICE_REQUEST}" > /tmp/service-request.json
-          node <<'NODE' >> "${GITHUB_OUTPUT}"
-          const fs = require('node:fs');
-          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
-          const outputs = {
-            source_repository: request.source_repository,
-            source_owner: request.source_repository.split('/')[0],
-            source_repository_name: request.source_repository.split('/')[1],
-            npm_package_name: request.npm_package_name,
-            npm_package_dir: request.npm_package_dir,
-            npm_dist_tag: request.npm_dist_tag,
-            npm_version_strategy: request.npm_version_strategy,
-          };
-          for (const [key, value] of Object.entries(outputs)) {
-            console.log(`${key}=${value}`);
-          }
-          NODE
+        run: node scripts/write-release-workflow-output.mjs npm-env
 
       - name: 生成源仓库检出 token
         id: source-token
@@ -435,15 +314,7 @@ jobs:
 
       - name: 检测 Go module 文件
         id: detect-go-module
-        shell: bash
-        run: |
-          if [ -f source/go.mod ]; then
-            echo "path=source/go.mod" >> "$GITHUB_OUTPUT"
-          elif [ -f source/go/go.mod ]; then
-            echo "path=source/go/go.mod" >> "$GITHUB_OUTPUT"
-          else
-            echo "path=" >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/detect-go-module.mjs source
 
       - name: 安装 Go
         if: ${{ steps.detect-go-module.outputs.path != '' }}
@@ -472,7 +343,6 @@ jobs:
         run: cargo install tauri-cli --version '^2' --locked
 
       - name: 构建 npm 平台产物
-        shell: bash
         env:
           NODE_OPTIONS: --max-old-space-size=6144
           BUILD_ONLY: true
@@ -518,21 +388,7 @@ jobs:
         name: 解析 npm 发布环境
         env:
           SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
-        run: |
-          printf '%s\n' "${SERVICE_REQUEST}" > /tmp/service-request.json
-          node <<'NODE' >> "${GITHUB_OUTPUT}"
-          const fs = require('node:fs');
-          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
-          const outputs = {
-            source_repository: request.source_repository,
-            source_owner: request.source_repository.split('/')[0],
-            source_repository_name: request.source_repository.split('/')[1],
-            npm_package_name: request.npm_package_name,
-          };
-          for (const [key, value] of Object.entries(outputs)) {
-            console.log(`${key}=${value}`);
-          }
-          NODE
+        run: node scripts/write-release-workflow-output.mjs npm-github-release-env
 
       - name: 生成源仓库检出 token
         id: source-token
@@ -617,24 +473,7 @@ jobs:
         name: 解析 npm 发布环境
         env:
           SERVICE_REQUEST: ${{ needs.prepare.outputs.service_request }}
-        run: |
-          printf '%s\n' "${SERVICE_REQUEST}" > /tmp/service-request.json
-          node <<'NODE' >> "${GITHUB_OUTPUT}"
-          const fs = require('node:fs');
-          const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
-          const outputs = {
-            source_repository: request.source_repository,
-            source_owner: request.source_repository.split('/')[0],
-            source_repository_name: request.source_repository.split('/')[1],
-            npm_package_name: request.npm_package_name,
-            npm_package_dir: request.npm_package_dir,
-            npm_dist_tag: request.npm_dist_tag,
-            npm_version_strategy: request.npm_version_strategy,
-          };
-          for (const [key, value] of Object.entries(outputs)) {
-            console.log(`${key}=${value}`);
-          }
-          NODE
+        run: node scripts/write-release-workflow-output.mjs npm-env
 
       - name: 生成源仓库检出 token
         id: source-token

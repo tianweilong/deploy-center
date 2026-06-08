@@ -210,7 +210,7 @@ export function resolveCalendarNpmVersion(sourceTag) {
   return sourceTag.slice(1);
 }
 
-export function resolveReleaseRequest(config, payload) {
+export function resolveReleaseRequest(config, payload, options = {}) {
   const serviceName = requireText(payload, 'service_name');
   const services = config.services ?? {};
   const service = services[serviceName];
@@ -221,7 +221,7 @@ export function resolveReleaseRequest(config, payload) {
   const sourceRef = requireText(payload, 'source_ref');
   const sourceSha = requireText(payload, 'source_sha');
   const sourceTag = requireText(payload, 'source_tag');
-  const buildDate = process.env.BUILD_DATE || new Date().toISOString();
+  const buildDate = options.buildDate || process.env.BUILD_DATE || new Date().toISOString();
   if (!RELEASE_TAG_PATTERN.test(sourceTag)) {
     throw new Error('source_tag must match vYYYY.M.D-tHHmm');
   }
