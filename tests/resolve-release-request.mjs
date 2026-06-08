@@ -138,6 +138,13 @@ test('resolve-release-request 解析 npm calendar 发布上下文', async () => 
   assert.equal(resolved.npm_dist_tag, 'latest');
   assert.equal(resolved.npm_publish_version, '2026.4.19-t1116');
   assert.equal(resolved.npm_platforms.length, 4);
+  assert.deepEqual(resolved.npm_platforms[0], {
+    runner: 'ubuntu-latest',
+    target: 'linux-x64',
+    target_os: 'linux',
+    target_arch: 'x64',
+    archive_ext: 'tar.gz',
+  });
 });
 
 test('resolve-release-request 解析 myte npm calendar 发布上下文', async () => {

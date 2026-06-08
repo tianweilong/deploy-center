@@ -176,6 +176,33 @@ function resolveBuildArgs(buildArgs, variables, serviceName) {
   );
 }
 
+function requireNpmPlatformText(platform, serviceName, field) {
+  const value = platform[field];
+  if (value === undefined || value === null || String(value).trim() === '') {
+    throw new Error(`服务 ${serviceName} 的 npmPlatforms 项缺少字段：${field}`);
+  }
+  return String(value).trim();
+}
+
+function normalizeNpmPlatform(platform, serviceName) {
+  if (!platform || typeof platform !== 'object' || Array.isArray(platform)) {
+    throw new Error(`服务 ${serviceName} 的 npmPlatforms 项必须是对象`);
+  }
+  return {
+    runner: requireNpmPlatformText(platform, serviceName, 'runner'),
+    target: requireNpmPlatformText(platform, serviceName, 'target'),
+    target_os: requireNpmPlatformText(platform, serviceName, 'targetOs'),
+    target_arch: requireNpmPlatformText(platform, serviceName, 'targetArch'),
+    archive_ext: requireNpmPlatformText(platform, serviceName, 'archiveExt'),
+  };
+}
+
+function normalizeNpmPlatforms(value, serviceName) {
+  return normalizeArray(value, 'npmPlatforms').map((platform) =>
+    normalizeNpmPlatform(platform, serviceName),
+  );
+}
+
 export function resolveCalendarNpmVersion(sourceTag) {
   if (!RELEASE_TAG_PATTERN.test(sourceTag)) {
     throw new Error('source_tag must match vYYYY.M.D-tHHmm');
@@ -228,7 +255,7 @@ export function resolveReleaseRequest(config, payload) {
     resolved.npm_version_strategy = service.npmVersionStrategy ?? 'calendar_tag';
     resolved.npm_dist_tag = service.npmDistTag ?? 'latest';
     resolved.npm_publish_version = resolveCalendarNpmVersion(sourceTag);
-    resolved.npm_platforms = normalizeArray(service.npmPlatforms, 'npmPlatforms');
+    resolved.npm_platforms = normalizeNpmPlatforms(service.npmPlatforms, serviceName);
   }
 
   return resolved;
