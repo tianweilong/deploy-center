@@ -232,7 +232,7 @@ BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 
 发布链路统一使用 GitHub App，不再配置 `SOURCE_REPO_TOKEN`、`DEPLOY_CENTER_TRIGGER_TOKEN` 或其它长期 PAT。
 
-- `DEPLOY_CENTER_APP_ID`：仓库 variable，值为 GitHub App ID。
+- `DEPLOY_CENTER_APP_CLIENT_ID`：仓库 variable，值为 GitHub App ID。
 - `DEPLOY_CENTER_APP_PRIVATE_KEY`：仓库 secret，值为 GitHub App private key PEM。
 - GitHub App 需安装到 `tianweilong/deploy-center` 与所有发布源仓库，例如 `tianweilong/vibe-kanban`、`tianweilong/myte`。
 - Repository permissions 至少包含 `Contents: Read and write`。

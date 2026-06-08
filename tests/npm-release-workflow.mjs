@@ -76,7 +76,7 @@ for (const pattern of [
   'NPM_DIST_TAG: ${{ steps.npm-env.outputs.npm_dist_tag }}',
   'id-token: write',
   'uses: actions/create-github-app-token@v3',
-  'DEPLOY_CENTER_APP_ID',
+  'DEPLOY_CENTER_APP_CLIENT_ID',
   'DEPLOY_CENTER_APP_PRIVATE_KEY',
   'token: ${{ steps.source-token.outputs.token }}',
   'gh release create',
