@@ -68,7 +68,7 @@ for (const pattern of [
   'node-version: 24',
   'uses: ./.github/actions/checkout-source',
   'uses: actions/create-github-app-token@v3',
-  'DEPLOY_CENTER_APP_ID',
+  'DEPLOY_CENTER_APP_CLIENT_ID',
   'DEPLOY_CENTER_APP_PRIVATE_KEY',
   'owner: ${{ steps.image-env.outputs.source_owner }}',
   'repositories: ${{ steps.image-env.outputs.source_repository_name }}',

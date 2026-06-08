@@ -6,7 +6,7 @@
 
 在 `deploy-center`、`vibe-kanban`、`myte` 等参与发布的仓库中配置：
 
-- Variable：`DEPLOY_CENTER_APP_ID`
+- Variable：`DEPLOY_CENTER_APP_CLIENT_ID`
 - Secret：`DEPLOY_CENTER_APP_PRIVATE_KEY`
 
 GitHub App 安装范围至少包含：

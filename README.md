@@ -16,7 +16,7 @@
 
 必需的仓库变量与密钥：
 
-- `DEPLOY_CENTER_APP_ID`：GitHub App ID。
+- `DEPLOY_CENTER_APP_CLIENT_ID`：GitHub App ID。
 - `DEPLOY_CENTER_APP_PRIVATE_KEY`：GitHub App private key PEM。
 
 必需的工作流权限：
