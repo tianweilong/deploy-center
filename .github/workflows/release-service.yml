@@ -24,7 +24,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
 
@@ -113,6 +113,8 @@ jobs:
           const outputs = {
             service_name: request.service_name,
             source_repository: request.source_repository,
+            source_owner: request.source_repository.split('/')[0],
+            source_repository_name: request.source_repository.split('/')[1],
             build_context: request.build_context,
             dockerfile_path: request.dockerfile_path,
             ghcr_image_repository: request.ghcr_image_repository,
@@ -124,12 +126,22 @@ jobs:
           }
           NODE
 
+      - name: 生成源仓库检出 token
+        id: source-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.DEPLOY_CENTER_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
+          owner: ${{ steps.image-env.outputs.source_owner }}
+          repositories: ${{ steps.image-env.outputs.source_repository_name }}
+          permission-contents: read
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ steps.image-env.outputs.source_repository }}
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ steps.source-token.outputs.token }}
           fetch-depth: 1
 
       - uses: ./.github/actions/print-runner-info
@@ -284,6 +296,8 @@ jobs:
           const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
           const outputs = {
             source_repository: request.source_repository,
+            source_owner: request.source_repository.split('/')[0],
+            source_repository_name: request.source_repository.split('/')[1],
             npm_package_name: request.npm_package_name,
             npm_package_dir: request.npm_package_dir,
             npm_dist_tag: request.npm_dist_tag,
@@ -294,12 +308,22 @@ jobs:
           }
           NODE
 
+      - name: 生成源仓库检出 token
+        id: source-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.DEPLOY_CENTER_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
+          owner: ${{ steps.npm-env.outputs.source_owner }}
+          repositories: ${{ steps.npm-env.outputs.source_repository_name }}
+          permission-contents: read
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ steps.npm-env.outputs.source_repository }}
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ steps.source-token.outputs.token }}
           fetch-depth: 0
 
       - name: 检测 Go module 文件
@@ -378,6 +402,8 @@ jobs:
           const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
           const outputs = {
             source_repository: request.source_repository,
+            source_owner: request.source_repository.split('/')[0],
+            source_repository_name: request.source_repository.split('/')[1],
             npm_package_name: request.npm_package_name,
             npm_package_dir: request.npm_package_dir,
             npm_dist_tag: request.npm_dist_tag,
@@ -388,12 +414,22 @@ jobs:
           }
           NODE
 
+      - name: 生成源仓库检出 token
+        id: source-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.DEPLOY_CENTER_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
+          owner: ${{ steps.npm-env.outputs.source_owner }}
+          repositories: ${{ steps.npm-env.outputs.source_repository_name }}
+          permission-contents: read
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ steps.npm-env.outputs.source_repository }}
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ steps.source-token.outputs.token }}
           fetch-depth: 0
 
       - name: 检测 Go module 文件
@@ -488,6 +524,8 @@ jobs:
           const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
           const outputs = {
             source_repository: request.source_repository,
+            source_owner: request.source_repository.split('/')[0],
+            source_repository_name: request.source_repository.split('/')[1],
             npm_package_name: request.npm_package_name,
           };
           for (const [key, value] of Object.entries(outputs)) {
@@ -495,12 +533,22 @@ jobs:
           }
           NODE
 
+      - name: 生成源仓库检出 token
+        id: source-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.DEPLOY_CENTER_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
+          owner: ${{ steps.npm-env.outputs.source_owner }}
+          repositories: ${{ steps.npm-env.outputs.source_repository_name }}
+          permission-contents: read
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ steps.npm-env.outputs.source_repository }}
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ steps.source-token.outputs.token }}
           fetch-depth: 0
 
       - name: 下载 npm 平台产物
@@ -575,6 +623,8 @@ jobs:
           const request = JSON.parse(fs.readFileSync('/tmp/service-request.json', 'utf8'));
           const outputs = {
             source_repository: request.source_repository,
+            source_owner: request.source_repository.split('/')[0],
+            source_repository_name: request.source_repository.split('/')[1],
             npm_package_name: request.npm_package_name,
             npm_package_dir: request.npm_package_dir,
             npm_dist_tag: request.npm_dist_tag,
@@ -585,12 +635,22 @@ jobs:
           }
           NODE
 
+      - name: 生成源仓库检出 token
+        id: source-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.DEPLOY_CENTER_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
+          owner: ${{ steps.npm-env.outputs.source_owner }}
+          repositories: ${{ steps.npm-env.outputs.source_repository_name }}
+          permission-contents: read
+
       - uses: ./.github/actions/checkout-source
         with:
           repository: ${{ steps.npm-env.outputs.source_repository }}
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ steps.source-token.outputs.token }}
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-node-pnpm

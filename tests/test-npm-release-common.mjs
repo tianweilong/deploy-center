@@ -120,6 +120,17 @@ test('resolvePublishVersion 支持 calendar_tag 策略', () => {
   );
 });
 
+test('resolvePublishVersion 将 calendar_tag 的 HHMM 归一化为合法 npm 版本', () => {
+  assert.equal(
+    resolvePublishVersion({
+      strategy: 'calendar_tag',
+      sourceTag: 'v2026.4.19-0105',
+      packageVersion: '0.0.0',
+    }),
+    '2026.4.19-105',
+  );
+});
+
 test('resolvePublishVersion 拒绝 calendar_tag 旧格式', () => {
   assert.throws(
     () => resolvePublishVersion({
