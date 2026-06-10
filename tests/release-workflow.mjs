@@ -42,6 +42,8 @@ for (const jobName of ['prepare', 'build-and-push-ghcr', 'merge-ghcr-manifest', 
 
 assertContains(file, 'packages: write');
 assertContains(file, 'id-token: write');
+assertContains(file, 'client-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}');
+assertNotContains(file, 'app-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}');
 assertNotContains(file, '[self-hosted, Linux, ARM64]');
 assertNotContains(file, '[self-hosted, macOS, ARM64]');
 

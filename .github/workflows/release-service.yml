@@ -73,7 +73,7 @@ jobs:
         id: source-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
+          client-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
           owner: ${{ steps.image-env.outputs.source_owner }}
           repositories: ${{ steps.image-env.outputs.source_repository_name }}
@@ -203,7 +203,7 @@ jobs:
         id: source-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
+          client-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
           owner: ${{ steps.npm-env.outputs.source_owner }}
           repositories: ${{ steps.npm-env.outputs.source_repository_name }}
@@ -283,7 +283,7 @@ jobs:
         id: source-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
+          client-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
           owner: ${{ steps.npm-env.outputs.source_owner }}
           repositories: ${{ steps.npm-env.outputs.source_repository_name }}
@@ -379,7 +379,7 @@ jobs:
         id: source-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
+          client-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
           owner: ${{ steps.npm-env.outputs.source_owner }}
           repositories: ${{ steps.npm-env.outputs.source_repository_name }}
@@ -464,7 +464,7 @@ jobs:
         id: source-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
+          client-id: ${{ vars.DEPLOY_CENTER_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEPLOY_CENTER_APP_PRIVATE_KEY }}
           owner: ${{ steps.npm-env.outputs.source_owner }}
           repositories: ${{ steps.npm-env.outputs.source_repository_name }}
