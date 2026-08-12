@@ -17,6 +17,9 @@ for (const image of [
   'ghcr.io/tianweilong/searxng',
   'ghcr.io/tianweilong/we-mp-rss',
   'ghcr.io/tianweilong/cli-proxy-api',
+  'ghcr.io/tianweilong/karakeep',
+  'ghcr.io/tianweilong/karakeep-chrome',
+  'ghcr.io/tianweilong/meilisearch',
 ]) {
   assertContains(servicesConfig, image);
 }

@@ -87,6 +87,33 @@ services:
       - linux/amd64
       - linux/arm64
 
+  karakeep:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/karakeep
+    dockerfilePath: images/karakeep/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/karakeep
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  karakeep-chrome:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/karakeep-chrome
+    dockerfilePath: images/karakeep-chrome/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/karakeep-chrome
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  meilisearch:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/meilisearch
+    dockerfilePath: images/meilisearch/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/meilisearch
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
   lobehub:
     sourceRepository: tianweilong/lobehub
     buildContext: .
