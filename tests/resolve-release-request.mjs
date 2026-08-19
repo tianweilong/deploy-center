@@ -77,6 +77,22 @@ test('resolve-release-request 解析镜像服务上下文', async () => {
   assert.equal(resolved.has_npm, false);
 });
 
+test('resolve-release-request 从 docker-mirror 构建 CLIProxyAPI 镜像', async () => {
+  const resolved = await runResolver({
+    service_name: 'cli-proxy-api',
+    source_ref: 'refs/tags/v2026.8.19-t1200',
+    source_sha: '0123456789abcdef0123456789abcdef01234567',
+    source_tag: 'v2026.8.19-t1200',
+  });
+
+  assert.equal(resolved.source_repository, 'tianweilong/docker-mirror');
+  assert.equal(resolved.build_context, 'images/cli-proxy-api');
+  assert.equal(resolved.dockerfile_path, 'images/cli-proxy-api/Dockerfile');
+  assert.equal(resolved.ghcr_image_repository, 'ghcr.io/tianweilong/cli-proxy-api');
+  assert.deepEqual(resolved.platforms, ['linux/amd64', 'linux/arm64']);
+  assert.deepEqual(resolved.build_args, {});
+});
+
 test('resolve-release-request 保留镜像构建参数', async () => {
   const tempRoot = await createTempDir('deploy-center-resolve-build-args-');
   const configPath = path.join(tempRoot, 'services.yaml');
