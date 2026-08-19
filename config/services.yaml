@@ -1,19 +1,12 @@
 services:
   cli-proxy-api:
-    sourceRepository: tianweilong/CLIProxyAPI
-    buildContext: .
-    dockerfilePath: Dockerfile
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/cli-proxy-api
+    dockerfilePath: images/cli-proxy-api/Dockerfile
     ghcrImageRepository: ghcr.io/tianweilong/cli-proxy-api
     defaultPlatforms:
       - linux/amd64
       - linux/arm64
-    buildArgs:
-      VERSION:
-        env: SOURCE_TAG
-      COMMIT:
-        env: SOURCE_SHA
-      BUILD_DATE:
-        env: BUILD_DATE
 
   postgres17:
     sourceRepository: tianweilong/docker-mirror
