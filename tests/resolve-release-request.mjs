@@ -10,6 +10,9 @@ test('config/services.yaml 定义 deploy-center 当前发布服务', async () =>
 
   assert.match(content, /^services:\n/m);
   for (const serviceName of [
+    'minio',
+    'minio-mc',
+    'clamav',
     'cli-proxy-api',
     'postgres17',
     'azure-storage-azurite',
@@ -26,6 +29,7 @@ test('config/services.yaml 定义 deploy-center 当前发布服务', async () =>
     'new-api',
     'vibe-kanban-remote',
     'vibe-kanban-relay',
+    'lingyi',
     'we-mp-rss',
     'vibe-kanban-npm',
     'myte',
@@ -75,6 +79,44 @@ test('resolve-release-request 解析镜像服务上下文', async () => {
   assert.deepEqual(resolved.platforms, ['linux/amd64', 'linux/arm64']);
   assert.equal(resolved.has_image, true);
   assert.equal(resolved.has_npm, false);
+});
+
+test('resolve-release-request 解析 Lingyi 镜像上下文', async () => {
+  const resolved = await runResolver({
+    service_name: 'lingyi',
+    source_ref: 'refs/tags/v2026.9.25-t1200',
+    source_sha: '0123456789abcdef0123456789abcdef01234567',
+    source_tag: 'v2026.9.25-t1200',
+  });
+
+  assert.equal(resolved.source_repository, 'tianweilong/lingyi');
+  assert.equal(resolved.build_context, '.');
+  assert.equal(resolved.dockerfile_path, 'backend/Dockerfile');
+  assert.equal(resolved.ghcr_image_repository, 'ghcr.io/tianweilong/lingyi');
+  assert.deepEqual(resolved.platforms, ['linux/amd64', 'linux/arm64']);
+  assert.equal(resolved.has_image, true);
+  assert.equal(resolved.has_npm, false);
+});
+
+test('resolve-release-request 解析 Lingyi 公共依赖镜像', async () => {
+  for (const [serviceName, imageRepository] of [
+    ['minio', 'ghcr.io/tianweilong/minio'],
+    ['minio-mc', 'ghcr.io/tianweilong/minio-mc'],
+    ['clamav', 'ghcr.io/tianweilong/clamav'],
+  ]) {
+    const resolved = await runResolver({
+      service_name: serviceName,
+      source_ref: 'refs/tags/v2026.9.25-t1200',
+      source_sha: '0123456789abcdef0123456789abcdef01234567',
+      source_tag: 'v2026.9.25-t1200',
+    });
+
+    assert.equal(resolved.source_repository, 'tianweilong/docker-mirror');
+    assert.equal(resolved.build_context, `images/${serviceName}`);
+    assert.equal(resolved.dockerfile_path, `images/${serviceName}/Dockerfile`);
+    assert.equal(resolved.ghcr_image_repository, imageRepository);
+    assert.deepEqual(resolved.platforms, ['linux/amd64', 'linux/arm64']);
+  }
 });
 
 test('resolve-release-request 从 docker-mirror 构建 CLIProxyAPI 镜像', async () => {

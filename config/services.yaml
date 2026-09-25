@@ -1,4 +1,31 @@
 services:
+  minio:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/minio
+    dockerfilePath: images/minio/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/minio
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  minio-mc:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/minio-mc
+    dockerfilePath: images/minio-mc/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/minio-mc
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  clamav:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/clamav
+    dockerfilePath: images/clamav/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/clamav
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
   cli-proxy-api:
     sourceRepository: tianweilong/docker-mirror
     buildContext: images/cli-proxy-api
@@ -139,6 +166,15 @@ services:
     buildContext: .
     dockerfilePath: crates/relay-tunnel/Dockerfile
     ghcrImageRepository: ghcr.io/tianweilong/vibe-kanban-relay
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
+  lingyi:
+    sourceRepository: tianweilong/lingyi
+    buildContext: .
+    dockerfilePath: backend/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/lingyi
     defaultPlatforms:
       - linux/amd64
       - linux/arm64
