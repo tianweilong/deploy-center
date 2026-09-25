@@ -5,6 +5,10 @@ const servicesConfig = await readRepoFile('config/services.yaml');
 for (const image of [
   'ghcr.io/tianweilong/vibe-kanban-remote',
   'ghcr.io/tianweilong/vibe-kanban-relay',
+  'ghcr.io/tianweilong/lingyi',
+  'ghcr.io/tianweilong/minio',
+  'ghcr.io/tianweilong/minio-mc',
+  'ghcr.io/tianweilong/clamav',
   'ghcr.io/tianweilong/new-api',
   'ghcr.io/tianweilong/lobehub',
   'ghcr.io/tianweilong/paradedb-pg17',

@@ -2,16 +2,17 @@
 
 一个私有的、多服务发布编排仓库。
 
-该仓库保存 `vibe-kanban` 相关服务的镜像构建配置，以及正式发布工作流。当前它同时负责两类发布目标：
+该仓库保存多业务仓与公共基础镜像的构建配置，以及正式发布工作流。当前负责的发布目标包括：
 
-- `vibe-kanban-remote` 与 `vibe-kanban-relay` 的 GHCR 镜像构建
-- `@vino.tian/vibe-kanban` 的 npm 打包与发布
+- `lingyi`、`vibe-kanban-remote`、`vibe-kanban-relay` 等业务 GHCR 镜像；
+- `docker-mirror` 中按目录维护的公共基础镜像；
+- `@vino.tian/vibe-kanban`、`@vino.tian/myte` 等 npm 包及发布资产。
 
 ## GitHub 配置
 
 发布链路统一使用 GitHub App，不再配置独立 PAT：
 
-- App 安装到 `tianweilong`，并授予 `deploy-center`、`vibe-kanban`、`myte` 等发布相关仓库访问权限。
+- App 安装到 `tianweilong`，并授予 `deploy-center`、`docker-mirror`、`lingyi`、`vibe-kanban`、`myte` 等发布相关仓库访问权限。
 - App Repository permissions 至少包含 `Contents: Read and write`；触发仓库用它向 `deploy-center` 发送 `repository_dispatch`，`deploy-center` 用它检出源仓库。
 
 必需的仓库变量与密钥：
