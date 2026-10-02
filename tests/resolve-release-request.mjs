@@ -96,6 +96,9 @@ test('resolve-release-request 解析 Lingyi 镜像上下文', async () => {
   assert.deepEqual(resolved.platforms, ['linux/amd64', 'linux/arm64']);
   assert.equal(resolved.has_image, true);
   assert.equal(resolved.has_npm, false);
+  assert.equal(resolved.build_args.BUILD_VERSION, 'v2026.9.25-t1200');
+  assert.equal(resolved.build_args.BUILD_COMMIT, '0123456789abcdef0123456789abcdef01234567');
+  assert.ok(Number.isFinite(Date.parse(resolved.build_args.BUILD_TIME)), '必须注入有效的构建时间');
 });
 
 test('resolve-release-request 解析 Lingyi 公共依赖镜像', async () => {
