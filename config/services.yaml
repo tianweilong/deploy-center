@@ -178,6 +178,13 @@ services:
     defaultPlatforms:
       - linux/amd64
       - linux/arm64
+    buildArgs:
+      BUILD_VERSION:
+        env: SOURCE_TAG
+      BUILD_COMMIT:
+        env: SOURCE_SHA
+      BUILD_TIME:
+        env: BUILD_DATE
 
   we-mp-rss:
     sourceRepository: tianweilong/we-mp-rss
