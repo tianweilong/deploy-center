@@ -44,6 +44,15 @@ services:
       - linux/amd64
       - linux/arm64
 
+  postgres18:
+    sourceRepository: tianweilong/docker-mirror
+    buildContext: images/postgres18
+    dockerfilePath: images/postgres18/Dockerfile
+    ghcrImageRepository: ghcr.io/tianweilong/postgres18
+    defaultPlatforms:
+      - linux/amd64
+      - linux/arm64
+
   azure-storage-azurite:
     sourceRepository: tianweilong/docker-mirror
     buildContext: images/azure-storage-azurite
