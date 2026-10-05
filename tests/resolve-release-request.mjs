@@ -15,6 +15,7 @@ test('config/services.yaml 定义 deploy-center 当前发布服务', async () =>
     'clamav',
     'cli-proxy-api',
     'postgres17',
+    'postgres18',
     'azure-storage-azurite',
     'azure-cli',
     'electricsql-electric',
